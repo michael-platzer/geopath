@@ -1,0 +1,24 @@
+# Ignore all
+*
+
+# Unignore all files with extensions
+!*.*
+
+# Unignore all directories
+!*/
+
+# Unignore makefiles
+!Makefile
+
+# Ignore binary files
+*.png
+*.tif
+*.tfw
+*.zip
+
+# Ignore Google protocol buffer parsers
+*_pb2.*
+*_pb3.*
+
+# Ignore python cache
+__pycache__/
