@@ -5,17 +5,17 @@ from geogrid import GeoGrid
 
 # initialize a grid graph with altitudes from a digital elevation model
 def init_topo_grid(grid_size, grid_scale, grid_orig, grid_crs, dem_path):
-    grid = GeoGrid(grid_size, grid_scale)
+    grid = GeoGrid(grid_size, grid_scale, grid_orig, grid_crs)
     dem  = GeoTIFF(dem_path)
     # get coordinates of each node w.r.t. grid CSR
     grid_nodes  = grid.get_nodes()
     node_list   = list(grid_nodes)
     node_coords = [
-        (grid_orig[0] + x * grid_scale, grid_orig[1] - y * grid_scale)
+        (grid.orig[0] + x * grid_scale, grid.orig[1] - y * grid_scale)
         for x, y in node_list
     ]
     # convert node coordinates from grid CSR to elevation model raster
-    raster_coords = dem.crs_to_raster(grid_crs, node_coords)
+    raster_coords = dem.crs_to_raster(grid.crs, node_coords)
     # get the altitude of each node and identify invalid nodes
     invalid_nodes = []
     for node, raster_coord in zip(node_list, raster_coords):
@@ -33,7 +33,6 @@ def init_topo_grid(grid_size, grid_scale, grid_orig, grid_crs, dem_path):
 
 
 # grid for Austria in WGS84 / Pseudo-Mercator (EPSG 3857)
-grid_csr  = 3857
 grid_orig = (1060000., 6280000.) # upper left corner
 grid_end  = (1910000., 5840000.) # lower right corner
 
@@ -47,7 +46,7 @@ print(grid_size)
 
 # initialize the grid with the digital elevation model
 dem_path = 'ogd-10m-at/dhm_at_lamb_10m_2018.tif'
-grid     = init_topo_grid(grid_size, grid_scale, grid_orig, grid_csr, dem_path)
+grid     = init_topo_grid(grid_size, grid_scale, grid_orig, 3857, dem_path)
 
 print(f"Initialized grid with digital elevation model")
 
@@ -77,12 +76,12 @@ coord_goal  = (1783338.24, 5915996.99)
 
 # convert start and goal coordinates to nodes
 grid_start = (
-    int((coord_start[0] - grid_orig[0]) / grid_scale),
-    int((grid_orig[1] - coord_start[1]) / grid_scale)
+    int((coord_start[0] - grid.orig[0]) / grid.scale),
+    int((grid.orig[1] - coord_start[1]) / grid.scale)
 )
 grid_goal = (
-    int((coord_goal[0] - grid_orig[0]) / grid_scale),
-    int((grid_orig[1] - coord_goal[1]) / grid_scale)
+    int((coord_goal[0] - grid.orig[0]) / grid.scale),
+    int((grid.orig[1] - coord_goal[1]) / grid.scale)
 )
 
 print(f"grid start: {grid_start}, grid goal: {grid_goal}")
@@ -208,7 +207,7 @@ out.putpixel(grid_goal , (0, 0, 255))
 draw = ImageDraw.Draw(out)
 for feature_type, line in tmap.query_shapes(zoom_level, filters):
     line = [
-        ((x - grid_orig[0]) / grid_scale, (grid_orig[1] - y) / grid_scale)
+        ((x - grid.orig[0]) / grid.scale, (grid.orig[1] - y) / grid.scale)
         for x, y in line
     ]
     if feature_type == 2:
@@ -217,7 +216,7 @@ for feature_type, line in tmap.query_shapes(zoom_level, filters):
     #    draw.polygon(line, fill=(235,255,170))
 for feature_type, line in airspace.get_shapes():
     line = [
-        ((x - grid_orig[0]) / grid_scale, (grid_orig[1] - y) / grid_scale)
+        ((x - grid.orig[0]) / grid.scale, (grid.orig[1] - y) / grid.scale)
         for x, y in line
     ]
     if feature_type == 2:
