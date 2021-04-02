@@ -123,7 +123,17 @@ terrain_palette = [
     (255, 255, 255)
 ]
 
-from PIL import Image
+from PIL import Image, ImageDraw
+import tilemap
+
+tmap = tilemap.VectorTileMap('https://maps.wien.gv.at/basemapv/bmapv/3857/')
+zoom_level = 6
+for layer in tmap.get_style_layers(zoom_level):
+    print(f"layer with zoom {zoom_level}: {layer['id']}")
+
+filters = tmap.get_style_filters([r'.*STAATSGRENZE.*', r'.*Autobahn.*'], 6)
+for layer in filters:
+    print(f"Using layer: {layer}")
 
 out = Image.new('RGB', grid.size, color='white')
 for node in grid.get_nodes():
@@ -136,6 +146,17 @@ for node in path:
     out.putpixel(node, (255, 0, 0))
 out.putpixel(grid_start, (0, 0, 255))
 out.putpixel(grid_goal , (0, 0, 255))
+
+def gen_raster_lines(tmap):
+
+
+draw = ImageDraw.Draw(out)
+for feature_type, line in tmap.query_shapes(zoom_level, filters):
+    line = [(x / grid_skip, y / grid_skip) for x, y in dhm.crs_to_raster(tmap.crs, line)]
+    if feature_type == 2:
+        draw.line(line, fill=(255, 0, 255))
+    #elif feature_type == 3:
+    #    draw.polygon(line, fill=(235,255,170))
 out.save('path.png')
 
 #total_delta = 0
