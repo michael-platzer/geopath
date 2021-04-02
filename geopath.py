@@ -143,6 +143,10 @@ terrain_palette = [
     (255, 255, 255)
 ]
 
+
+###############################################################################
+# basemap features
+
 from PIL import Image, ImageDraw
 import tilemap
 
@@ -154,6 +158,43 @@ for layer in tmap.get_style_layers(zoom_level):
 filters = tmap.get_style_filters([r'.*STAATSGRENZE.*', r'.*Autobahn.*'], 6)
 for layer in filters:
     print(f"Using layer: {layer}")
+
+
+###############################################################################
+# airspace features
+
+import requests
+from geojson import GeoJSON
+
+feature_request = '''
+<GetFeature xmlns="http://www.opengis.net/wfs" service="WFS" version="1.1.0" outputFormat="application/json" xsi:schemaLocation="http://www.opengis.net/wfs http://schemas.opengis.net/wfs/1.1.0/wfs.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" viewParams="window_start:2021-04-02T07:27:40.632Z;window_end:2021-04-02T21:59:59.999Z"><Query typeName="airspace" srsName="EPSG:3857"></Query></GetFeature>
+'''
+
+token_url  = 'https://map.dronespace.at/oauth/token'
+token_auth = ('AustroDroneWeb', 'AustroDroneWeb')
+token_data = {'grant_type': 'client_credentials'}
+
+req = requests.post(token_url, auth=token_auth, data=token_data)
+assert req.status_code == 200, f"token request status {req.status_code}"
+
+token = req.json()['access_token']
+
+feature_url = 'https://map.dronespace.at/ows'
+req_headers = {
+    'Content-Type':  'text/xml;charset=UTF-8',
+    'Authorization': f"Bearer {token}"
+}
+
+req = requests.post(feature_url, headers=req_headers, data=feature_request)
+assert req.status_code == 200, f"feature request status {req.status_code}"
+airspace = GeoJSON(req.json())
+
+for feature in airspace.features:
+    print(f"{feature.category:26}{feature.lower_limit[0]:6}  {feature.code:8}  {feature.name}")
+
+
+###############################################################################
+# generate output image
 
 out = Image.new('RGB', grid.size, color='white')
 for node in grid_nodes:
@@ -174,6 +215,13 @@ for feature_type, line in tmap.query_shapes(zoom_level, filters):
         draw.line(line, fill=(255, 0, 255))
     #elif feature_type == 3:
     #    draw.polygon(line, fill=(235,255,170))
+for feature_type, line in airspace.get_shapes():
+    line = [
+        ((x - grid_orig[0]) / grid_scale, (grid_orig[1] - y) / grid_scale)
+        for x, y in line
+    ]
+    if feature_type == 2:
+        draw.line(line, fill=(0, 255, 255))
 out.save('path.png')
 
 #total_delta = 0
