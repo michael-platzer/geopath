@@ -3,39 +3,56 @@
 from geotiff import GeoTIFF
 from geogrid import GeoGrid
 
-dhm = GeoTIFF('ogd-10m-at/dhm_at_lamb_10m_2018.tif')
-dhm_size  = dhm.img.size
-dhm_scale = dhm.pix_scale[0]
+# initialize a grid graph with altitudes from a digital elevation model
+def init_topo_grid(grid_size, grid_scale, grid_orig, grid_crs, dem_path):
+    grid = GeoGrid(grid_size, grid_scale)
+    dem  = GeoTIFF(dem_path)
+    # get coordinates of each node w.r.t. grid CSR
+    grid_nodes  = grid.get_nodes()
+    node_list   = list(grid_nodes)
+    node_coords = [
+        (grid_orig[0] + x * grid_scale, grid_orig[1] - y * grid_scale)
+        for x, y in node_list
+    ]
+    # convert node coordinates from grid CSR to elevation model raster
+    raster_coords = dem.crs_to_raster(grid_crs, node_coords)
+    # get the altitude of each node and identify invalid nodes
+    invalid_nodes = []
+    for node, raster_coord in zip(node_list, raster_coords):
+        x, y = raster_coord
+        if 0 <= x < dem.img.size[0] and 0<= y <= dem.img.size[1]:
+            altitude = dem.img.getpixel(raster_coord)
+            if 0. <= altitude <= 5000.:
+                grid_nodes[node]['alt'] = altitude
+            else:
+                invalid_nodes.append(node)
+        else:
+            invalid_nodes.append(node)
+    grid.rm_nodes(invalid_nodes)
+    return grid
 
-# http://voibos.rechenraum.com/voibos/voibos?name=hoehenservice&Koordinate=16.494422,48.225206&CRS=4326
-coord = (16.494422, 48.225206)
-print(next(dhm.crs_to_model(4326, [coord])))
-trans = next(dhm.crs_to_raster(4326, [coord, (14.25, 48.57), (16.02, 46.84)]))
-print(trans)
 
-print(dhm.img.getpixel((int(trans[0]), int(trans[1]))))
+# grid for Austria in WGS84 / Pseudo-Mercator (EPSG 3857)
+grid_csr  = 3857
+grid_orig = (1060000., 6280000.) # upper left corner
+grid_end  = (1910000., 5840000.) # lower right corner
 
-grossglockner = (12.69525, 47.074867)
-print(dhm.img.getpixel(next(dhm.crs_to_raster(4326, [grossglockner]))))
+# desired scale and resulting grid size
+grid_scale = 500.
+grid_size  = (
+    int((grid_end[0] - grid_orig[0]) / grid_scale),
+    int((grid_orig[1] - grid_end[1]) / grid_scale)
+)
+print(grid_size)
+
+# initialize the grid with the digital elevation model
+dem_path = 'ogd-10m-at/dhm_at_lamb_10m_2018.tif'
+grid     = init_topo_grid(grid_size, grid_scale, grid_orig, grid_csr, dem_path)
+
+print(f"Initialized grid with digital elevation model")
 
 
-grid_skip = 50
-grid_size = (dhm_size[0] // grid_skip, dhm_size[1] // grid_skip)
-grid      = GeoGrid(grid_size, dhm_scale * grid_skip)
-
-print(f"Initialized grid")
-
-# remove all nodes with invalid heights
-invalid_nodes = []
-for node in grid.get_nodes():
-    height = dhm.img.getpixel((node[0] * grid_skip, node[1] * grid_skip))
-    if height < 0. or height > 5000.:
-        invalid_nodes.append(node)
-grid.rm_nodes(invalid_nodes)
-
-print(f"Removed {len(invalid_nodes)} invalid nodes")
-
-# update the weight with the additional cost of climbing/descending
+# update edge weights with the additional cost of climbing/descending
 slope_factor = 0.001 / (0.05**2)  # accepting 0.1 % longer way to avoid 5 % slope
 #slope_factor = 0.01 / (0.05**2)  # accepting 1 % longer way to avoid 5 % slope
 #slope_factor = 0.1 / (0.05**2)  # accepting 10 % longer way to avoid 5 % slope
@@ -43,30 +60,33 @@ slope_factor = 0.001 / (0.05**2)  # accepting 0.1 % longer way to avoid 5 % slop
 #slope_factor = 0.4 / (0.05**2)  # accepting 20 % longer way to avoid 5 % slope
 #slope_factor = 0.5 / (0.05**2)  # accepting 50 % longer way to avoid 5 % slope
 #slope_factor = 1.0 / (0.05**2)  # accepting 100 % longer way to avoid 5 % slope
-for edge in grid.get_edges():
+grid_nodes = grid.get_nodes()
+grid_edges = grid.get_edges()
+for edge in grid_edges:
     node1, node2 = edge
-    height1 = dhm.img.getpixel((node1[0] * grid_skip, node1[1] * grid_skip))
-    height2 = dhm.img.getpixel((node2[0] * grid_skip, node2[1] * grid_skip))
-    diff    = abs(height1 - height2)
-
-    length = grid.get_edges()[edge]['weight']
+    diff   = abs(grid_nodes[node1]['alt'] - grid_nodes[node2]['alt'])
+    length = grid_edges[edge]['weight']
     slope  = diff / length
-
-    grid.get_edges()[edge]['weight'] = length * (1. + slope_factor * slope**2)
+    grid_edges[edge]['weight'] = length * (1. + slope_factor * slope**2)
 
 print(f"Updated weight of all edges with slope penalty")
 
-coords = list(dhm.crs_to_raster(4326, [(14.25, 48.57), (16.02, 46.84)]))
-print(coords)
-coord_start = coords[0]
-coord_goal  = coords[1]
 
-print(f"raster start: {coord_start}, raster goal: {coord_goal}")
+coord_start = (1586302.74, 6202211.87)
+coord_goal  = (1783338.24, 5915996.99)
 
-grid_start = (int(coord_start[0] / grid_skip), int(coord_start[1] / grid_skip))
-grid_goal  = (int(coord_goal [0] / grid_skip), int(coord_goal [1] / grid_skip))
+# convert start and goal coordinates to nodes
+grid_start = (
+    int((coord_start[0] - grid_orig[0]) / grid_scale),
+    int((grid_orig[1] - coord_start[1]) / grid_scale)
+)
+grid_goal = (
+    int((coord_goal[0] - grid_orig[0]) / grid_scale),
+    int((grid_orig[1] - coord_goal[1]) / grid_scale)
+)
 
 print(f"grid start: {grid_start}, grid goal: {grid_goal}")
+
 
 path = grid.find_path(grid_start, grid_goal)
 
@@ -136,23 +156,20 @@ for layer in filters:
     print(f"Using layer: {layer}")
 
 out = Image.new('RGB', grid.size, color='white')
-for node in grid.get_nodes():
-    height = dhm.img.getpixel((node[0] * grid_skip, node[1] * grid_skip))
-    #valp = height / 4096.
-    #valn = 1. - valp
-    #out.putpixel(node, (int(valn * 0x94 + valp * 0xee), int(valn * 0xfe + valp * 0xbb), int(valn * 0x85 + valp * 0x91)))
-    out.putpixel(node, terrain_palette[int((height / 4000.) * len(terrain_palette))])
+for node in grid_nodes:
+    altitude = grid_nodes[node]['alt']
+    out.putpixel(node, terrain_palette[int((altitude / 4000.) * len(terrain_palette))])
 for node in path:
     out.putpixel(node, (255, 0, 0))
 out.putpixel(grid_start, (0, 0, 255))
 out.putpixel(grid_goal , (0, 0, 255))
 
-def gen_raster_lines(tmap):
-
-
 draw = ImageDraw.Draw(out)
 for feature_type, line in tmap.query_shapes(zoom_level, filters):
-    line = [(x / grid_skip, y / grid_skip) for x, y in dhm.crs_to_raster(tmap.crs, line)]
+    line = [
+        ((x - grid_orig[0]) / grid_scale, (grid_orig[1] - y) / grid_scale)
+        for x, y in line
+    ]
     if feature_type == 2:
         draw.line(line, fill=(255, 0, 255))
     #elif feature_type == 3:

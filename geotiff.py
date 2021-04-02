@@ -4,6 +4,7 @@ Image.MAX_IMAGE_PIXELS = None
 
 import subprocess
 import select
+import os
 
 class GeoTIFF:
     # raster types
