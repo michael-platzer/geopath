@@ -4,7 +4,7 @@ import math
 import shapely.geometry as shp
 
 class GeoGrid:
-    def __init__(self, size, scale, orig=(0,0), diags=[(1, 1)]):
+    def __init__(self, size, scale, orig=(0,0)):
         assert (len(size) == 2 and isinstance(size[0], int)
                                and isinstance(size[1], int)), (
             "size must be a tuple with two integers")
@@ -14,20 +14,41 @@ class GeoGrid:
         self.scale = scale
         self.orig  = orig
 
-        # create the grid
-        self.G = nx.grid_2d_graph(size[0], size[1])
-        for edge in self.G.edges:
-            self.G.edges[edge]['weight'] = self.scale
+        # create the nodes
+        self.G = nx.empty_graph(0)
+        self.G.add_nodes_from(
+            (x, y) for x in range(size[0]) for y in range(size[1])
+        )
+
+
+    def init_edges(self, diags=[(1, 1)], length_scale=None):
+        if length_scale is None:
+            length_scale = self.scale
+
+        # add horizontal and vertical edges
+        for dx, dy in [(0, 1), (1, 0)]:
+            new_edges = [
+                ((x, y), (x + dx, y + dy)) for x in range(self.size[0] - dx)
+                                           for y in range(self.size[1] - dy)
+            ]
+            self.G.add_edges_from([
+                edge for edge in new_edges
+                     if (edge[0] in self.G and edge[1] in self.G)
+            ], weight=length_scale)
 
         # add the diagonals
         for dx, dy in diags:
-            diag_wgt = self.scale * math.sqrt(float(dx**2 + dy**2))
-            self.G.add_edges_from([
+            diag_wgt = length_scale * math.sqrt(float(dx**2 + dy**2))
+            new_edges = [
                 ((x, y), (x + dx, y + dy)) for x in range(self.size[0] - dx)
                                            for y in range(self.size[1] - dy)
             ] + [
                 ((x + dx, y), (x, y + dy)) for x in range(self.size[0] - dx)
                                            for y in range(self.size[1] - dy)
+            ]
+            self.G.add_edges_from([
+                edge for edge in new_edges
+                     if (edge[0] in self.G and edge[1] in self.G)
             ], weight=diag_wgt)
 
 

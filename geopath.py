@@ -55,33 +55,6 @@ grid     = init_topo_grid(grid_size, grid_scale, grid_orig, 3857, dem_path)
 print(f"Initialized grid with digital elevation model")
 
 
-grid_nodes = grid.get_nodes()
-grid_edges = grid.get_edges()
-
-# correct edge weights (i.e. lengths) by the distortion scaling
-for edge in grid_edges:
-    grid_edges[edge]['weight'] /= distortion
-
-
-# update edge weights with the additional cost of climbing/descending
-#slope_factor = 0.001 / (0.05**2)  # accepting 0.1 % longer way to avoid 5 % slope
-#slope_factor = 0.01 / (0.05**2)  # accepting 1 % longer way to avoid 5 % slope
-#slope_factor = 0.1 / (0.05**2)  # accepting 10 % longer way to avoid 5 % slope
-#slope_factor = 0.2 / (0.05**2)  # accepting 20 % longer way to avoid 5 % slope
-#slope_factor = 0.4 / (0.05**2)  # accepting 20 % longer way to avoid 5 % slope
-slope_factor = 0.5 / (0.05**2)  # accepting 50 % longer way to avoid 5 % slope
-#slope_factor = 1.0 / (0.05**2)  # accepting 100 % longer way to avoid 5 % slope
-for edge in grid_edges:
-    node1, node2 = edge
-    diff   = abs(grid_nodes[node1]['alt'] - grid_nodes[node2]['alt'])
-    length = grid_edges[edge]['weight']
-    slope  = diff / length
-    grid_edges[edge]['weight'] = length * (1. + slope_factor * slope**2)
-
-print(f"Updated weight of all edges with slope penalty")
-
-
-
 terrain_palette = [
     (84 , 229, 151),
     (97 , 240, 130),
@@ -225,6 +198,33 @@ for feature_type, coords in airspace.get_shapes(200):
         grid.rm_points(coords, 2000.)
     elif feature_type == 3:
         grid.rm_polygon(coords, 300.)
+
+
+###############################################################################
+# complete graph by adding edges
+
+print(f"Adding edges ...")
+
+grid.init_edges(length_scale=grid.scale/distortion)
+grid_nodes = grid.get_nodes()
+grid_edges = grid.get_edges()
+
+print(f"Updating weight of all edges with slope penalty ...")
+
+# update edge weights with the additional cost of climbing/descending
+#slope_factor = 0.001 / (0.05**2)  # accepting 0.1 % longer way to avoid 5 % slope
+#slope_factor = 0.01 / (0.05**2)  # accepting 1 % longer way to avoid 5 % slope
+#slope_factor = 0.1 / (0.05**2)  # accepting 10 % longer way to avoid 5 % slope
+#slope_factor = 0.2 / (0.05**2)  # accepting 20 % longer way to avoid 5 % slope
+#slope_factor = 0.4 / (0.05**2)  # accepting 20 % longer way to avoid 5 % slope
+slope_factor = 0.5 / (0.05**2)  # accepting 50 % longer way to avoid 5 % slope
+#slope_factor = 1.0 / (0.05**2)  # accepting 100 % longer way to avoid 5 % slope
+for edge in grid_edges:
+    node1, node2 = edge
+    diff   = abs(grid_nodes[node1]['alt'] - grid_nodes[node2]['alt'])
+    length = grid_edges[edge]['weight']
+    slope  = diff / length
+    grid_edges[edge]['weight'] = length * (1. + slope_factor * slope**2)
 
 
 ###############################################################################
