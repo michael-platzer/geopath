@@ -71,7 +71,7 @@ class VectorTileMap:
             coords = [(x, y) for x in range(extent) for y in range(extent)]
         next_coords = []
         for x, y in coords:
-            req = requests.get(self.tile_url.format(z=lod_seq[0][0], y=y, x=x))
+            req = requests.head(self.tile_url.format(z=lod_seq[0][0], y=y, x=x))
             if req.status_code == 200:
                 x, y = x * 2, y * 2
                 next_coords += [(x, y), (x + 1, y), (x, y + 1), (x + 1, y + 1)]
