@@ -155,9 +155,16 @@ for layer in filters:
 
 import requests
 import xml.etree.ElementTree as ET
+from datetime import datetime, timedelta, timezone
 from geojson import GeoJSON
 
 print("Querying restriced airspace ...")
+
+dt_start = datetime.now(timezone.utc)
+dt_end   = datetime(
+    dt_start.year, dt_start.month, dt_start.day, tzinfo=timezone.utc
+) + timedelta(days=0, seconds=3600*24-1, milliseconds=999)
+time_format = '%Y-%m-%dT%H:%M:%S.000Z'
 
 feature_req = ET.Element('GetFeature', {
     'xmlns':              "http://www.opengis.net/wfs",
@@ -166,7 +173,7 @@ feature_req = ET.Element('GetFeature', {
     'outputFormat':       "application/json",
     'xsi:schemaLocation': "http://www.opengis.net/wfs http://schemas.opengis.net/wfs/1.1.0/wfs.xsd",
     'xmlns:xsi':          "http://www.w3.org/2001/XMLSchema-instance",
-    'viewParams':         "window_start:2021-04-02T07:27:40.632Z;window_end:2021-04-02T21:59:59.999Z"
+    'viewParams':         f"window_start:{dt_start.strftime(time_format)};window_end:{dt_end.strftime(time_format)}"
 })
 ET.SubElement(feature_req, 'Query', {'typeName': "airspace", 'srsName': "EPSG:3857"})
 feature_req = ET.tostring(feature_req, encoding='utf8')
