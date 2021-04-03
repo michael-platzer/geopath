@@ -135,22 +135,6 @@ terrain_palette = [
 
 
 ###############################################################################
-# basemap features
-
-from PIL import Image, ImageDraw
-import tilemap
-
-tmap = tilemap.VectorTileMap('https://maps.wien.gv.at/basemapv/bmapv/3857/')
-zoom_level = 6
-for layer in tmap.get_style_layers(zoom_level):
-    print(f"layer with zoom {zoom_level}: {layer['id']}")
-
-filters = tmap.get_style_filters([r'.*STAATSGRENZE.*', r'.*Autobahn.*'], 6)
-for layer in filters:
-    print(f"Using layer: {layer}")
-
-
-###############################################################################
 # airspace features
 
 import requests
@@ -202,20 +186,37 @@ airspace = GeoJSON(req.json())
 
 
 ###############################################################################
+# basemap features
+
+from PIL import Image, ImageDraw
+import tilemap
+
+print("Initializing basemap vector map ...")
+
+tmap = tilemap.VectorTileMap('https://maps.wien.gv.at/basemapv/bmapv/3857/')
+zoom_level = 8
+for layer in tmap.get_style_layers(zoom_level):
+    print(f"  layer with zoom {zoom_level}: {layer['id']}")
+
+filters = tmap.get_style_filters([
+    r'GRENZEN/.*STAATSGRENZE.*',
+    r'STRASSENNETZ/.*Autobahn.*',
+    r'NUTZUNG/.*Siedlung.*'
+], zoom_level)
+for layer in filters:
+    print(f"  Using layer: {layer}")
+
+
+###############################################################################
 # remove forbidden areas
 
 print("Removing forbidden areas ...")
-
-#filters = tmap.get_style_filters([r'.*STAATSGRENZE.*', r'.*Autobahn.*'], zoom_level)
-filters = tmap.get_style_filters([r'.*Autobahn.*'], zoom_level)
-for layer in filters:
-    print(f"  Using layer: {layer}")
 
 for feature_type, coords in tmap.query_shapes(zoom_level, filters):
     if feature_type == 2:
         grid.rm_line(coords, 300.)
     elif feature_type == 3:
-        grid.rm_polygon(line, 300.)
+        grid.rm_polygon(coords, 300.)
 
 print("  Removing restricted airspace ...")
 
@@ -253,6 +254,8 @@ path = grid.find_path(grid_start, grid_goal)
 
 ###############################################################################
 # generate output image
+
+print("Generating output image ...")
 
 out = Image.new('RGB', grid.size, color='white')
 for node in grid_nodes:
