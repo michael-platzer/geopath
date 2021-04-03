@@ -184,12 +184,62 @@ req_headers = {
     'Authorization': f"Bearer {token}"
 }
 
-req = requests.post(feature_url, headers=req_headers, data=feature_request)
+req = requests.post(feature_url, headers=req_headers, data=feature_req)
 assert req.status_code == 200, f"feature request status {req.status_code}"
 airspace = GeoJSON(req.json())
 
-for feature in airspace.features:
-    print(f"{feature.category:26}{feature.lower_limit[0]:6}  {feature.code:8}  {feature.name}")
+#for feature in airspace.features:
+#    print(f"{feature.category:26}{feature.lower_limit[0]:6} {feature.upper_limit[0]:7}  {feature.code:8}  {feature.name}")
+
+
+###############################################################################
+# remove forbidden areas
+
+print("Removing forbidden areas ...")
+
+#filters = tmap.get_style_filters([r'.*STAATSGRENZE.*', r'.*Autobahn.*'], zoom_level)
+filters = tmap.get_style_filters([r'.*Autobahn.*'], zoom_level)
+for layer in filters:
+    print(f"  Using layer: {layer}")
+
+for feature_type, coords in tmap.query_shapes(zoom_level, filters):
+    if feature_type == 2:
+        grid.rm_line(coords, 300.)
+    elif feature_type == 3:
+        grid.rm_polygon(line, 300.)
+
+print("  Removing restricted airspace ...")
+
+for feature_type, coords in airspace.get_shapes(200):
+    if feature_type == 1:
+        grid.rm_points(coords, 2000.)
+    elif feature_type == 3:
+        grid.rm_polygon(coords, 300.)
+
+
+###############################################################################
+# search path
+
+print("Searching path ...")
+
+#coord_start = (1586302.74, 6202211.87)
+#coord_goal  = (1783338.24, 5915996.99)
+coord_start = (1373668.944570, 6052995.719446)
+coord_goal  = (1526447.454855, 5873019.959034)
+
+# convert start and goal coordinates to nodes
+grid_start = (
+    int((coord_start[0] - grid.orig[0]) / grid.scale),
+    int((grid.orig[1] - coord_start[1]) / grid.scale)
+)
+grid_goal = (
+    int((coord_goal[0] - grid.orig[0]) / grid.scale),
+    int((grid.orig[1] - coord_goal[1]) / grid.scale)
+)
+
+print(f"  grid start: {grid_start}, grid goal: {grid_goal}")
+
+path = grid.find_path(grid_start, grid_goal)
 
 
 ###############################################################################
@@ -203,24 +253,23 @@ for node in path:
     out.putpixel(node, (255, 0, 0))
 out.putpixel(grid_start, (0, 0, 255))
 out.putpixel(grid_goal , (0, 0, 255))
-
-draw = ImageDraw.Draw(out)
-for feature_type, line in tmap.query_shapes(zoom_level, filters):
-    line = [
-        ((x - grid.orig[0]) / grid.scale, (grid.orig[1] - y) / grid.scale)
-        for x, y in line
-    ]
-    if feature_type == 2:
-        draw.line(line, fill=(255, 0, 255))
-    #elif feature_type == 3:
-    #    draw.polygon(line, fill=(235,255,170))
-for feature_type, line in airspace.get_shapes():
-    line = [
-        ((x - grid.orig[0]) / grid.scale, (grid.orig[1] - y) / grid.scale)
-        for x, y in line
-    ]
-    if feature_type == 2:
-        draw.line(line, fill=(0, 255, 255))
+#draw = ImageDraw.Draw(out)
+#for feature_type, line in tmap.query_shapes(zoom_level, filters):
+#    line = [
+#        ((x - grid.orig[0]) / grid.scale, (grid.orig[1] - y) / grid.scale)
+#        for x, y in line
+#    ]
+#    if feature_type == 2:
+#        draw.line(line, fill=(255, 0, 255))
+#    #elif feature_type == 3:
+#    #    draw.polygon(line, fill=(235,255,170))
+#for feature_type, line in airspace.get_shapes():
+#    line = [
+#        ((x - grid.orig[0]) / grid.scale, (grid.orig[1] - y) / grid.scale)
+#        for x, y in line
+#    ]
+#    if feature_type == 2:
+#        draw.line(line, fill=(0, 255, 255))
 out.save('path.png')
 
 #total_delta = 0
