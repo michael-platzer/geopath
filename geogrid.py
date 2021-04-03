@@ -4,7 +4,7 @@ import math
 import shapely.geometry as shp
 
 class GeoGrid:
-    def __init__(self, size, scale, orig=(0,0), crs=None, diags=[(1, 1)]):
+    def __init__(self, size, scale, orig=(0,0), diags=[(1, 1)]):
         assert (len(size) == 2 and isinstance(size[0], int)
                                and isinstance(size[1], int)), (
             "size must be a tuple with two integers")
@@ -13,7 +13,6 @@ class GeoGrid:
         self.size  = size
         self.scale = scale
         self.orig  = orig
-        self.crs   = crs
 
         # create the grid
         self.G = nx.grid_2d_graph(size[0], size[1])

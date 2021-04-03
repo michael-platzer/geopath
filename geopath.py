@@ -1,21 +1,22 @@
 #!/usr/bin/env python3
 
+import math
 from geotiff import GeoTIFF
 from geogrid import GeoGrid
 
 # initialize a grid graph with altitudes from a digital elevation model
 def init_topo_grid(grid_size, grid_scale, grid_orig, grid_crs, dem_path):
-    grid = GeoGrid(grid_size, grid_scale, grid_orig, grid_crs)
+    grid = GeoGrid(grid_size, grid_scale, grid_orig)
     dem  = GeoTIFF(dem_path)
     # get coordinates of each node w.r.t. grid CSR
     grid_nodes  = grid.get_nodes()
     node_list   = list(grid_nodes)
     node_coords = [
-        (grid.orig[0] + x * grid_scale, grid.orig[1] - y * grid_scale)
+        (grid.orig[0] + x * grid.scale, grid.orig[1] - y * grid.scale)
         for x, y in node_list
     ]
     # convert node coordinates from grid CSR to elevation model raster
-    raster_coords = dem.crs_to_raster(grid.crs, node_coords)
+    raster_coords = dem.crs_to_raster(grid_crs, node_coords)
     # get the altitude of each node and identify invalid nodes
     invalid_nodes = []
     for node, raster_coord in zip(node_list, raster_coords):
@@ -36,13 +37,16 @@ def init_topo_grid(grid_size, grid_scale, grid_orig, grid_crs, dem_path):
 grid_orig = (1060000., 6280000.) # upper left corner
 grid_end  = (1910000., 5840000.) # lower right corner
 
+# distortion scaling factor at a reference latitude of 47.5 deg
+distortion = 1. / math.cos(47.5 * math.pi / 180.)
+
 # desired scale and resulting grid size
-grid_scale = 500.
+grid_scale = distortion * 250.
 grid_size  = (
     int((grid_end[0] - grid_orig[0]) / grid_scale),
     int((grid_orig[1] - grid_end[1]) / grid_scale)
 )
-print(grid_size)
+print(f"Initializing grid of size {grid_size} ...")
 
 # initialize the grid with the digital elevation model
 dem_path = 'ogd-10m-at/dhm_at_lamb_10m_2018.tif'
@@ -51,16 +55,22 @@ grid     = init_topo_grid(grid_size, grid_scale, grid_orig, 3857, dem_path)
 print(f"Initialized grid with digital elevation model")
 
 
+grid_nodes = grid.get_nodes()
+grid_edges = grid.get_edges()
+
+# correct edge weights (i.e. lengths) by the distortion scaling
+for edge in grid_edges:
+    grid_edges[edge]['weight'] /= distortion
+
+
 # update edge weights with the additional cost of climbing/descending
-slope_factor = 0.001 / (0.05**2)  # accepting 0.1 % longer way to avoid 5 % slope
+#slope_factor = 0.001 / (0.05**2)  # accepting 0.1 % longer way to avoid 5 % slope
 #slope_factor = 0.01 / (0.05**2)  # accepting 1 % longer way to avoid 5 % slope
 #slope_factor = 0.1 / (0.05**2)  # accepting 10 % longer way to avoid 5 % slope
 #slope_factor = 0.2 / (0.05**2)  # accepting 20 % longer way to avoid 5 % slope
 #slope_factor = 0.4 / (0.05**2)  # accepting 20 % longer way to avoid 5 % slope
-#slope_factor = 0.5 / (0.05**2)  # accepting 50 % longer way to avoid 5 % slope
+slope_factor = 0.5 / (0.05**2)  # accepting 50 % longer way to avoid 5 % slope
 #slope_factor = 1.0 / (0.05**2)  # accepting 100 % longer way to avoid 5 % slope
-grid_nodes = grid.get_nodes()
-grid_edges = grid.get_edges()
 for edge in grid_edges:
     node1, node2 = edge
     diff   = abs(grid_nodes[node1]['alt'] - grid_nodes[node2]['alt'])
@@ -69,25 +79,6 @@ for edge in grid_edges:
     grid_edges[edge]['weight'] = length * (1. + slope_factor * slope**2)
 
 print(f"Updated weight of all edges with slope penalty")
-
-
-coord_start = (1586302.74, 6202211.87)
-coord_goal  = (1783338.24, 5915996.99)
-
-# convert start and goal coordinates to nodes
-grid_start = (
-    int((coord_start[0] - grid.orig[0]) / grid.scale),
-    int((grid.orig[1] - coord_start[1]) / grid.scale)
-)
-grid_goal = (
-    int((coord_goal[0] - grid.orig[0]) / grid.scale),
-    int((grid.orig[1] - coord_goal[1]) / grid.scale)
-)
-
-print(f"grid start: {grid_start}, grid goal: {grid_goal}")
-
-
-path = grid.find_path(grid_start, grid_goal)
 
 
 
