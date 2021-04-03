@@ -97,7 +97,7 @@ class VectorTileMap:
                 if filters is None or layer.name in filters:
                     extent = layer.extent
                     for feature in layer.features:
-                        if filters is None:
+                        if filters is None or filters[layer.name] is None:
                             yield (feature, extent, tile_pos)
                         else:
                             # get tags for this feature
