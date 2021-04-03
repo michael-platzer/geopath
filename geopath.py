@@ -154,11 +154,22 @@ for layer in filters:
 # airspace features
 
 import requests
+import xml.etree.ElementTree as ET
 from geojson import GeoJSON
 
-feature_request = '''
-<GetFeature xmlns="http://www.opengis.net/wfs" service="WFS" version="1.1.0" outputFormat="application/json" xsi:schemaLocation="http://www.opengis.net/wfs http://schemas.opengis.net/wfs/1.1.0/wfs.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" viewParams="window_start:2021-04-02T07:27:40.632Z;window_end:2021-04-02T21:59:59.999Z"><Query typeName="airspace" srsName="EPSG:3857"></Query></GetFeature>
-'''
+print("Querying restriced airspace ...")
+
+feature_req = ET.Element('GetFeature', {
+    'xmlns':              "http://www.opengis.net/wfs",
+    'service':            "WFS",
+    'version':            "1.1.0",
+    'outputFormat':       "application/json",
+    'xsi:schemaLocation': "http://www.opengis.net/wfs http://schemas.opengis.net/wfs/1.1.0/wfs.xsd",
+    'xmlns:xsi':          "http://www.w3.org/2001/XMLSchema-instance",
+    'viewParams':         "window_start:2021-04-02T07:27:40.632Z;window_end:2021-04-02T21:59:59.999Z"
+})
+ET.SubElement(feature_req, 'Query', {'typeName': "airspace", 'srsName': "EPSG:3857"})
+feature_req = ET.tostring(feature_req, encoding='utf8')
 
 token_url  = 'https://map.dronespace.at/oauth/token'
 token_auth = ('AustroDroneWeb', 'AustroDroneWeb')
