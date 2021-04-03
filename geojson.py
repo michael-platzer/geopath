@@ -4,15 +4,22 @@ class AirspaceFeature:
 
     def __init__(self, json_dict):
         self.feature_id = json_dict['id']
-        assert self.feature_id.startswith('airspace.'), "no airspace feature"
+        assert self.feature_id.partition('.')[0] in ['airspace', 'uaszone'], (
+            f"{feature_id} is no airspace or uaszone feature")
 
         properties = json_dict['properties']
         geometry   = json_dict['geometry']
 
-        self.category  = properties['category']
-        self.name      = properties['name']
-        self.code      = properties['airspace_code']
         self.reference = properties['external_reference']
+        self.name      = properties.get('name', None)
+
+        if self.feature_id.startswith('airspace.'):
+            self.category = properties['category']
+            self.code     = properties['airspace_code']
+
+        elif self.feature_id.startswith('uaszone.'):
+            self.category = properties['type_code']
+            self.code     = properties['code']
 
         limit_props = ['limit_altitude', 'limit_reference', 'limit_unit']
         lower_limit = [properties[f"lower_{prop}"] for prop in limit_props]
@@ -50,7 +57,7 @@ class GeoJSON:
         self.features = []
         for feature in json_dict['features']:
             feature_id = feature['id']
-            if feature_id.startswith('airspace.'):
+            if feature_id.partition('.')[0] in ['airspace', 'uaszone']:
                 self.features.append(AirspaceFeature(feature))
             else:
                 raise ValueError(f"unsupported feature with id {feature_id}")

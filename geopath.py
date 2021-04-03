@@ -117,45 +117,49 @@ from geojson import GeoJSON
 
 print("Querying restriced airspace ...")
 
+# get access token
+token_url  = 'https://map.dronespace.at/oauth/token'
+token_auth = ('AustroDroneWeb', 'AustroDroneWeb')
+token_data = {'grant_type': 'client_credentials'}
+req = requests.post(token_url, auth=token_auth, data=token_data)
+assert req.status_code == 200, f"token request status {req.status_code}"
+token = req.json()['access_token']
+
+def ows_request(url, token, typename, dt_start, dt_end):
+    feature_req = ET.Element('GetFeature', {
+        'xmlns':              "http://www.opengis.net/wfs",
+        'service':            "WFS",
+        'version':            "1.1.0",
+        'outputFormat':       "application/json",
+        'xsi:schemaLocation': "http://www.opengis.net/wfs http://schemas.opengis.net/wfs/1.1.0/wfs.xsd",
+        'xmlns:xsi':          "http://www.w3.org/2001/XMLSchema-instance",
+        'viewParams':         f"window_start:{dt_start.strftime(time_format)};window_end:{dt_end.strftime(time_format)}"
+    })
+    ET.SubElement(feature_req, 'Query', {'typeName': typename, 'srsName': "EPSG:3857"})
+    feature_req = ET.tostring(feature_req, encoding='utf8')
+    req_headers = {
+        'Content-Type':  'text/xml;charset=UTF-8',
+        'Authorization': f"Bearer {token}"
+    }
+    req = requests.post(url, headers=req_headers, data=feature_req)
+    assert req.status_code == 200, f"feature request status {req.status_code}"
+    return req.json()
+
 dt_start = datetime.now(timezone.utc)
 dt_end   = datetime(
     dt_start.year, dt_start.month, dt_start.day, tzinfo=timezone.utc
 ) + timedelta(days=0, seconds=3600*24-1, milliseconds=999)
 time_format = '%Y-%m-%dT%H:%M:%S.000Z'
 
-feature_req = ET.Element('GetFeature', {
-    'xmlns':              "http://www.opengis.net/wfs",
-    'service':            "WFS",
-    'version':            "1.1.0",
-    'outputFormat':       "application/json",
-    'xsi:schemaLocation': "http://www.opengis.net/wfs http://schemas.opengis.net/wfs/1.1.0/wfs.xsd",
-    'xmlns:xsi':          "http://www.w3.org/2001/XMLSchema-instance",
-    'viewParams':         f"window_start:{dt_start.strftime(time_format)};window_end:{dt_end.strftime(time_format)}"
-})
-ET.SubElement(feature_req, 'Query', {'typeName': "airspace", 'srsName': "EPSG:3857"})
-feature_req = ET.tostring(feature_req, encoding='utf8')
-
-token_url  = 'https://map.dronespace.at/oauth/token'
-token_auth = ('AustroDroneWeb', 'AustroDroneWeb')
-token_data = {'grant_type': 'client_credentials'}
-
-req = requests.post(token_url, auth=token_auth, data=token_data)
-assert req.status_code == 200, f"token request status {req.status_code}"
-
-token = req.json()['access_token']
-
-feature_url = 'https://map.dronespace.at/ows'
-req_headers = {
-    'Content-Type':  'text/xml;charset=UTF-8',
-    'Authorization': f"Bearer {token}"
-}
-
-req = requests.post(feature_url, headers=req_headers, data=feature_req)
-assert req.status_code == 200, f"feature request status {req.status_code}"
-airspace = GeoJSON(req.json())
+ows_url  = 'https://map.dronespace.at/ows'
+airspace = GeoJSON(ows_request(ows_url, token, 'airspace', dt_start, dt_end))
+uaszone  = GeoJSON(ows_request(ows_url, token, 'uaszone' , dt_start, dt_end))
 
 #for feature in airspace.features:
 #    print(f"{feature.category:26}{feature.lower_limit[0]:6} {feature.upper_limit[0]:7}  {feature.code:8}  {feature.name}")
+
+for feature in uaszone.features:
+    print(f"{feature.category:26}{feature.lower_limit[0]:6} {feature.upper_limit[0]:7}  {(feature.code if feature.code is not None else ''):8}  {feature.name}")
 
 
 ###############################################################################
@@ -194,6 +198,14 @@ for feature_type, coords in tmap.query_shapes(zoom_level, filters):
 print("  Removing restricted airspace ...")
 
 for feature_type, coords in airspace.get_shapes(200):
+    if feature_type == 1:
+        grid.rm_points(coords, 2000.)
+    elif feature_type == 3:
+        grid.rm_polygon(coords, 300.)
+
+print("  Removing restricted drone zones ...")
+
+for feature_type, coords in uaszone.get_shapes(200):
     if feature_type == 1:
         grid.rm_points(coords, 2000.)
     elif feature_type == 3:
