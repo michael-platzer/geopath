@@ -208,7 +208,3 @@ class GeoTIFF:
 
     def raster_to_crs(self, code, coords):
         return self.model_to_crs(self.raster_to_model(coords), code)
-
-
-#dhm = GeoTIFF('ogd-10m-at/dhm_at_lamb_10m_2018.tif')
-#print(list(dhm.crs_to_raster(4312, [(16.4951667, 48.2261372)])))

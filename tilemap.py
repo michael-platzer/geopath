@@ -31,10 +31,6 @@ class VectorTileMap:
             #self.lods.append((lod['level'], lod['scale']))
             self.lods.append((lod['level'], lod['resolution'] * 512))
 
-        print(self.crs)
-        print(self.orig)
-        print(self.lods)
-
 
     def get_style_layers(self, zoom_level=None):
         for layer in self.style['layers']:
@@ -87,7 +83,6 @@ class VectorTileMap:
     def _get_tiles(self, lod):
         level, scale = self.lods[lod]
         coords       = self._get_tile_coords(self.lods[1:lod])
-        print(coords)
         for x, y in coords:
             req = requests.get(self.tile_url.format(z=level, y=y, x=x))
             if req.status_code == 200:
