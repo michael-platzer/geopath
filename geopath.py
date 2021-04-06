@@ -100,8 +100,8 @@ uaszone  = GeoJSON(ows_request(ows_url, token, 'uaszone' , dt_start, dt_end))
 #for feature in airspace.features:
 #    print(f"{feature.category:26}{feature.lower_limit[0]:6} {feature.upper_limit[0]:7}  {feature.code:8}  {feature.name}")
 
-for feature in uaszone.features:
-    print(f"{feature.category:26}{feature.lower_limit[0]:6} {feature.upper_limit[0]:7}  {(feature.code if feature.code is not None else ''):8}  {feature.name}")
+#for feature in uaszone.features:
+#    print(f"{feature.category:26}{feature.lower_limit[0]:6} {feature.upper_limit[0]:7}  {(feature.code if feature.code is not None else ''):8}  {feature.name}")
 
 
 ###############################################################################
