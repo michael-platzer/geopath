@@ -19,6 +19,18 @@ class GeoGrid:
         self.vals = np.full(size, -1., np.float32)
 
 
+    @staticmethod
+    def load(path, scale, orig=(0,0)):
+        vals = np.load(path)
+        grid = GeoGrid(vals.shape, scale, orig)
+        grid.vals = vals
+        return grid
+
+
+    def save(self, path):
+        np.save(path, self.vals)
+
+
     def init_graph(self, diags=[(1, 1)], length_scale=None):
         if length_scale is None:
             length_scale = self.scale

@@ -15,6 +15,7 @@
 *.tif
 *.tfw
 *.zip
+*.npy
 
 # Ignore Google protocol buffer parsers
 *_pb2.*
