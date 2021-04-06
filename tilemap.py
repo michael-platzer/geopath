@@ -2,6 +2,7 @@
 from urllib.parse import urljoin
 import requests
 import re
+import time
 
 import vector_tile_pb2
 
@@ -80,15 +81,30 @@ class VectorTileMap:
         return self._get_tile_coords(lod_seq[1:], next_coords)
 
 
-    def _get_tiles(self, lod):
+    def _get_tiles(self, lod, bufcnt=10):
         level, scale = self.lods[lod]
         coords       = self._get_tile_coords(self.lods[1:lod])
+        tilebuf      = []
         for x, y in coords:
-            req = requests.get(self.tile_url.format(z=level, y=y, x=x))
+            while True:
+                try:
+                    req = requests.get(self.tile_url.format(z=level, y=y, x=x))
+                except ConnectionError:
+                    pass
+                else:
+                    if req.status_code not in [429, 500, 502, 503, 504]:
+                        break
+                time.sleep(5)
             if req.status_code == 200:
                 tile = vector_tile_pb2.Tile()
                 tile.ParseFromString(req.content)
-                yield (tile, (x, y))
+                tilebuf.append((tile, (x, y)))
+            if len(tilebuf) > bufcnt:
+                for tile in tilebuf:
+                    yield tile
+                tilebuf = []
+        for tile in tilebuf:
+            yield tile
 
 
     def _query_features(self, lod, filters=None):
