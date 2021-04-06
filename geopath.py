@@ -9,27 +9,21 @@ def init_topo_grid(grid_size, grid_scale, grid_orig, grid_crs, dem_path):
     grid = GeoGrid(grid_size, grid_scale, grid_orig)
     dem  = GeoTIFF(dem_path)
     # get coordinates of each node w.r.t. grid CSR
-    grid_nodes  = grid.get_nodes()
-    node_list   = list(grid_nodes)
+    node_list = [
+        (x, y) for x in range(grid.size[0]) for y in range(grid.size[1])
+    ]
     node_coords = [
         (grid.orig[0] + x * grid.scale, grid.orig[1] - y * grid.scale)
         for x, y in node_list
     ]
     # convert node coordinates from grid CSR to elevation model raster
     raster_coords = dem.crs_to_raster(grid_crs, node_coords)
-    # get the altitude of each node and identify invalid nodes
-    invalid_nodes = []
-    for node, raster_coord in zip(node_list, raster_coords):
-        x, y = raster_coord
-        if 0 <= x < dem.img.size[0] and 0<= y <= dem.img.size[1]:
-            altitude = dem.img.getpixel(raster_coord)
-            if 0. <= altitude <= 5000.:
-                grid_nodes[node]['alt'] = altitude
-            else:
-                invalid_nodes.append(node)
-        else:
-            invalid_nodes.append(node)
-    grid.rm_nodes(invalid_nodes)
+    # assign each node its respective altitude
+    grid.set_node_values(
+        (node, dem.img.getpixel(raster_coord))
+        for node, raster_coord in zip(node_list, raster_coords)
+        if (0 <= raster_coord[0] < dem.img.size[0] and 0 <= raster_coord[1] < dem.img.size[1])
+    )
     return grid
 
 
@@ -41,7 +35,7 @@ grid_end  = (1910000., 5840000.) # lower right corner
 distortion = 1. / math.cos(47.5 * math.pi / 180.)
 
 # desired scale and resulting grid size
-grid_scale = distortion * 250.
+grid_scale = distortion * 200.
 grid_size  = (
     int((grid_end[0] - grid_orig[0]) / grid_scale),
     int((grid_orig[1] - grid_end[1]) / grid_scale)
@@ -165,8 +159,7 @@ for feature_type, coords in uaszone.get_shapes(200):
 
 print(f"Adding edges ...")
 
-grid.init_edges(length_scale=grid.scale/distortion)
-grid_nodes = grid.get_nodes()
+grid.init_graph(length_scale=grid.scale/distortion)
 grid_edges = grid.get_edges()
 
 print(f"Updating weight of all edges with slope penalty ...")
@@ -181,7 +174,7 @@ slope_factor = 0.5 / (0.05**2)  # accepting 50 % longer way to avoid 5 % slope
 #slope_factor = 1.0 / (0.05**2)  # accepting 100 % longer way to avoid 5 % slope
 for edge in grid_edges:
     node1, node2 = edge
-    diff   = abs(grid_nodes[node1]['alt'] - grid_nodes[node2]['alt'])
+    diff   = abs(grid.get_node_value(node1) - grid.get_node_value(node2))
     length = grid_edges[edge]['weight']
     slope  = diff / length
     grid_edges[edge]['weight'] = length * (1. + slope_factor * slope**2)
@@ -269,9 +262,10 @@ terrain_palette = [
 print("Generating output image ...")
 
 out = Image.new('RGB', grid.size, color='white')
-for node in grid_nodes:
-    altitude = grid_nodes[node]['alt']
-    out.putpixel(node, terrain_palette[int((altitude / 4000.) * len(terrain_palette))])
+for node in ((x, y) for x in range(grid.size[0]) for y in range(grid.size[1])):
+    altitude = grid.get_node_value(node)
+    if 0. <= altitude < 4000.:
+        out.putpixel(node, terrain_palette[int((altitude / 4000.) * len(terrain_palette))])
 for node in path:
     out.putpixel(node, (255, 0, 0))
 out.putpixel(grid_start, (0, 0, 255))

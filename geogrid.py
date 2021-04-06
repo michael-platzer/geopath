@@ -1,4 +1,5 @@
 
+import numpy as np
 import networkx as nx
 import math
 import shapely.geometry as shp
@@ -14,16 +15,20 @@ class GeoGrid:
         self.scale = scale
         self.orig  = orig
 
+        # create array for node values
+        self.vals = np.full(size, -1., np.float32)
+
+
+    def init_graph(self, diags=[(1, 1)], length_scale=None):
+        if length_scale is None:
+            length_scale = self.scale
+
         # create the nodes
         self.G = nx.empty_graph(0)
         self.G.add_nodes_from(
-            (x, y) for x in range(size[0]) for y in range(size[1])
+            (x, y) for x in range(self.size[0]) for y in range(self.size[1])
+            if 0. <= self.vals[x, y] <= 5000.
         )
-
-
-    def init_edges(self, diags=[(1, 1)], length_scale=None):
-        if length_scale is None:
-            length_scale = self.scale
 
         # add horizontal and vertical edges
         for dx, dy in [(0, 1), (1, 0)]:
@@ -61,11 +66,14 @@ class GeoGrid:
 
 
     def rm_nodes(self, nodes):
-        for node in nodes:
-            try:
-                self.G.remove_node(node)
-            except nx.NetworkXError:
-                pass
+        for x, y in nodes:
+            if 0 <= x < self.size[0] and 0 <= y < self.size[1]:
+                self.vals[x, y] = -1.
+                if hasattr(self, 'G'):
+                    try:
+                        self.G.remove_node((x, y))
+                    except nx.NetworkXError:
+                        pass
 
 
     def rm_edges(self, edges):
@@ -74,6 +82,24 @@ class GeoGrid:
                 self.G.remove_edge(edge)
             except nx.NetworkXError:
                 pass
+
+
+    def set_node_value(self, node, val):
+        self.vals[node[0], node[1]] = val
+
+
+    def set_node_values(self, vals):
+        for (x, y), val in vals:
+            self.vals[x, y] = val
+
+
+    def get_node_value(self, node):
+        return float(self.vals[node[0], node[1]])
+
+
+    def get_node_values(self, nodes):
+        for x, y in nodes:
+            yield float((x, y), self.vals[x, y])
 
 
     def coords_to_grid(self, coords):
