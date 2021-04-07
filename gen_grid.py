@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import math
+import logging
+logging.basicConfig(level=logging.INFO)
 
 # configuration constants
 GRID_RESOLUTION = 200 # grid resolution in meters

@@ -3,11 +3,16 @@ from urllib.parse import urljoin
 import requests
 import re
 import time
+import logging
 
 import vector_tile_pb2
 
 class VectorTileMap:
-    def __init__(self, index_url, style_url=None):
+    def __init__(self, index_url, style_url=None, logger=None):
+        self.logger = logging.getLogger(
+            VectorTileMap.__qualname__ if logger is None else logger
+        )
+
         # load index
         req = requests.get(index_url)
         assert req.status_code == 200, f"{index_url}: status {req.status_code}"
@@ -85,14 +90,17 @@ class VectorTileMap:
         level, scale = self.lods[lod]
         coords       = self._get_tile_coords(self.lods[1:lod])
         tilebuf      = []
-        for x, y in coords:
+        for cnt, (x, y) in enumerate(coords):
+            self.logger.info(f"fetching tile {cnt} of {len(coords)}")
             while True:
                 try:
                     req = requests.get(self.tile_url.format(z=level, y=y, x=x))
-                except ConnectionError:
+                except requests.exceptions.ConnectionError:
+                    self.logger.info(f"connection error, trying again")
                     pass
                 else:
                     if req.status_code not in [429, 500, 502, 503, 504]:
+                        self.logger.info(f"server error, trying again")
                         break
                 time.sleep(5)
             if req.status_code == 200:
