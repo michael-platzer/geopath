@@ -10,7 +10,8 @@
 # Unignore makefiles
 !Makefile
 
-# Ignore binary files
+# Ignore images and binary files
+*.svg
 *.png
 *.tif
 *.tfw
