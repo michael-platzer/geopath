@@ -72,12 +72,26 @@ class VectorTileMap:
 
     # binary search to find locations of tiles (avoid trying all urls)
     def _get_tile_coords(self, lod_seq, coords=None):
+        self.logger.info(f"probing tile coordinates for LOD {lod_seq[0][0]}")
         if coords is None:
             extent = 2**lod_seq[0][0]
             coords = [(x, y) for x in range(extent) for y in range(extent)]
         next_coords = []
-        for x, y in coords:
-            req = requests.head(self.tile_url.format(z=lod_seq[0][0], y=y, x=x))
+        for cnt, (x, y) in enumerate(coords):
+            self.logger.info(f"probing tile {cnt} of {len(coords)}")
+            while True:
+                try:
+                    req = requests.head(
+                        self.tile_url.format(z=lod_seq[0][0], y=y, x=x)
+                    )
+                except requests.exceptions.ConnectionError:
+                    self.logger.info(f"connection error, trying again")
+                    pass
+                else:
+                    if req.status_code in [429, 500, 502, 503, 504]:
+                        self.logger.info(f"server error, trying again")
+                    else:
+                        break
             if req.status_code == 200:
                 x, y = x * 2, y * 2
                 next_coords += [(x, y), (x + 1, y), (x, y + 1), (x + 1, y + 1)]
@@ -99,8 +113,9 @@ class VectorTileMap:
                     self.logger.info(f"connection error, trying again")
                     pass
                 else:
-                    if req.status_code not in [429, 500, 502, 503, 504]:
+                    if req.status_code in [429, 500, 502, 503, 504]:
                         self.logger.info(f"server error, trying again")
+                    else:
                         break
                 time.sleep(5)
             if req.status_code == 200:
