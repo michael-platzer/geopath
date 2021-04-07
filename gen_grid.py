@@ -7,11 +7,11 @@ logging.basicConfig(level=logging.INFO)
 # configuration constants
 GRID_RESOLUTION = 200 # grid resolution in meters
 
-BASEMAP_LEVEL     = 8
-BASEMAP_LINEWIDTH = 500 # width of basemap line features (e.g., highways)
-BASEMAP_MARGIN    = 150 # margin around basemap areas (e.g., buildings)
-AIRSPACE_MARGIN   = 150 # margin around restricted airspace
-UASZONE_MARGIN    = 150 # margin around restricted UAS zones
+BASEMAP_LEVEL     = 11
+BASEMAP_LINEWIDTH = 300 # width of basemap line features (e.g., highways)
+BASEMAP_MARGIN    = 120 # margin around basemap areas (e.g., buildings)
+AIRSPACE_MARGIN   = 0   # margin around restricted airspace
+UASZONE_MARGIN    = 0   # margin around restricted UAS zones
 
 # bounds for Austria in WGS84 / Pseudo-Mercator (EPSG 3857)
 grid_orig = (1060000., 6280000.) # upper left corner
@@ -144,6 +144,8 @@ for layer in filters:
 # remove forbidden areas
 
 print("Removing forbidden areas ...")
+
+print("  Removing highways and populated areas ...")
 
 for feature_type, coords in tmap.query_shapes(zoom_level, filters):
     if feature_type == 2:
