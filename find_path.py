@@ -73,18 +73,21 @@ path = grid.find_path(grid_start, grid_goal)
 
 
 ###############################################################################
-# generate output image
+# generate output map
 
 from geodraw import GeoDraw
 
 print("Generating output image ...")
 draw = GeoDraw(grid.size)
 draw.fill_palette(
-    (coord, val / 4000.) for coord, val in (
+    (coord, val / 4500.) for coord, val in (
         ((x, y), grid.get_node_value((x, y))) for x in range(grid.size[0])
                                               for y in range(grid.size[1])
-    ) if 0. <= val <= 4000.
+    ) if 0. <= val <= 4500.
 )
+#draw.fill_palette(
+#    ((100 + x, 100 + y), x / 1000.) for x in range(1000) for y in range(100)
+#)
 draw.fill_color(path, (255, 0, 0))
 draw.fill_color([grid_start, grid_goal], (0, 0, 255))
 draw.save(f"path_{GRID_RESOLUTION}x{GRID_RESOLUTION}.png")
