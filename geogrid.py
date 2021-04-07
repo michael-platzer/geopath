@@ -44,29 +44,34 @@ class GeoGrid:
 
         # add horizontal and vertical edges
         for dx, dy in [(0, 1), (1, 0)]:
-            new_edges = [
+            new_edges = (
                 ((x, y), (x + dx, y + dy)) for x in range(self.size[0] - dx)
                                            for y in range(self.size[1] - dy)
-            ]
-            self.G.add_edges_from([
+            )
+            self.G.add_edges_from((
                 edge for edge in new_edges
                      if (edge[0] in self.G and edge[1] in self.G)
-            ], weight=length_scale)
+            ), weight=length_scale)
 
         # add the diagonals
         for dx, dy in diags:
             diag_wgt = length_scale * math.sqrt(float(dx**2 + dy**2))
-            new_edges = [
+            new_edges = (
                 ((x, y), (x + dx, y + dy)) for x in range(self.size[0] - dx)
                                            for y in range(self.size[1] - dy)
-            ] + [
-                ((x + dx, y), (x, y + dy)) for x in range(self.size[0] - dx)
-                                           for y in range(self.size[1] - dy)
-            ]
-            self.G.add_edges_from([
+            )
+            self.G.add_edges_from((
                 edge for edge in new_edges
                      if (edge[0] in self.G and edge[1] in self.G)
-            ], weight=diag_wgt)
+            ), weight=diag_wgt)
+            new_edges = (
+                ((x + dx, y), (x, y + dy)) for x in range(self.size[0] - dx)
+                                           for y in range(self.size[1] - dy)
+            )
+            self.G.add_edges_from((
+                edge for edge in new_edges
+                     if (edge[0] in self.G and edge[1] in self.G)
+            ), weight=diag_wgt)
 
 
     def get_nodes(self):
