@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
 
 import math
+import argparse
 
-# configuration constants
-GRID_RESOLUTION = 200 # grid resolution in meters
+parser = argparse.ArgumentParser(description='Find a terrain following path.')
+parser.add_argument('-r', '--resolution', metavar='GRID_RESOLUTION',
+                    type=int, default=100,
+                    help='grid resolution in meters (default 100)')
+parser.add_argument('grid', metavar="GRID_FILE",
+                    help='grid file')
+args = parser.parse_args()
 
 # bounds for Austria in WGS84 / Pseudo-Mercator (EPSG 3857)
 grid_orig = (1060000., 6280000.) # upper left corner
@@ -11,7 +17,7 @@ grid_end  = (1910000., 5840000.) # lower right corner
 
 # distortion scaling factor at a reference latitude of 47.5 deg
 distortion = 1. / math.cos(47.5 * math.pi / 180.)
-grid_scale = distortion * GRID_RESOLUTION
+grid_scale = distortion * args.resolution
 
 ###############################################################################
 # initialize grid
@@ -21,7 +27,7 @@ from geogrid import GeoGrid
 print(f"Loading grid ...")
 
 grid = GeoGrid.load(
-    f"grid_{GRID_RESOLUTION}x{GRID_RESOLUTION}.npy", grid_scale, grid_orig
+    args.grid, grid_scale, grid_orig
 )
 
 print(f"Initializing graph ...")
@@ -92,7 +98,7 @@ draw.fill_palette(
 #)
 draw.fill_color(path, (255, 0, 0))
 draw.fill_color([grid_start, grid_goal], (0, 0, 255))
-draw.save(f"path_{GRID_RESOLUTION}x{GRID_RESOLUTION}.png")
+draw.save(args.grid.rsplit('.', 1)[0] + '_path.png')
 
 #total_delta = 0
 #for node1, node2 in zip(path, path[1:]):
@@ -106,7 +112,7 @@ draw.save(f"path_{GRID_RESOLUTION}x{GRID_RESOLUTION}.png")
 ###############################################################################
 # generate altitude profile
 
-path_len = GRID_RESOLUTION * sum(
+path_len = args.resolution * sum(
     math.sqrt((x1 - x2)**2 + (y1 - y2)**2) for (x1, y1), (x2, y2)
                                            in zip(path, path[1:])
 )
@@ -116,7 +122,7 @@ min_slope, max_slope = 0., 0.
 svg_scale    = (0.1, 1.)
 profile_size = (int(path_len * svg_scale[0]), int(4000. * svg_scale[1]))
 
-with open(f"profile_{GRID_RESOLUTION}x{GRID_RESOLUTION}.svg", 'w') as svg:
+with open(args.grid.rsplit('.', 1)[0] + '_profile.png', 'w') as svg:
     svg.write('<svg ')
     svg.write(f"width=\"{profile_size[0]}\" height=\"{profile_size[1]}\" ")
     svg.write(f"viewBox=\"0 0 {profile_size[0]} {profile_size[1]}\" ")
@@ -125,7 +131,7 @@ with open(f"profile_{GRID_RESOLUTION}x{GRID_RESOLUTION}.svg", 'w') as svg:
     terrain_line = [(0., grid.get_node_value(path[0]))]
     xpos = 0.
     for (x1, y1), (x2, y2) in zip(path, path[1:]):
-        dist  = GRID_RESOLUTION * math.sqrt((x1 - x2)**2 + (y1 - y2)**2)
+        dist  = args.resolution * math.sqrt((x1 - x2)**2 + (y1 - y2)**2)
         alt1  = grid.get_node_value((x1, y1))
         alt2  = grid.get_node_value((x2, y2))
         slope = (alt2 - alt1) / dist
