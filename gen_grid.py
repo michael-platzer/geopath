@@ -1,11 +1,21 @@
 #!/usr/bin/env python3
 
 import math
+import argparse
 import logging
 logging.basicConfig(level=logging.INFO)
 
-# configuration constants
-GRID_RESOLUTION = 200 # grid resolution in meters
+parser = argparse.ArgumentParser(description='Generate a terrain grid.')
+parser.add_argument('-r', '--resolution', metavar='GRID_RESOLUTION',
+                    type=int, default=100,
+                    help='grid resolution in meters (default 100)')
+parser.add_argument('grid', metavar="GRID_FILE.npy",
+                    help='grid file')
+args = parser.parse_args()
+
+assert args.grid.rsplit('.', 1)[1] == 'npy', (
+    "grid file must use file extension *.npy"
+)
 
 BASEMAP_LEVEL     = 11
 BASEMAP_LINEWIDTH = 300 # width of basemap line features (e.g., highways)
@@ -21,7 +31,7 @@ grid_end  = (1910000., 5840000.) # lower right corner
 distortion = 1. / math.cos(47.5 * math.pi / 180.)
 
 # desired scale and resulting grid size
-grid_scale = distortion * GRID_RESOLUTION
+grid_scale = distortion * args.resolution
 grid_size  = (
     int((grid_end[0] - grid_orig[0]) / grid_scale),
     int((grid_orig[1] - grid_end[1]) / grid_scale)
@@ -175,7 +185,7 @@ for feature_type, coords in uaszone.get_shapes(200):
 ###############################################################################
 # save map and generate output image
 
-grid.save(f"grid_{GRID_RESOLUTION}x{GRID_RESOLUTION}.npy")
+grid.save(args.grid)
 
 from geodraw import GeoDraw
 
@@ -187,4 +197,4 @@ draw.fill_palette(
                                               for y in range(grid.size[1])
     ) if 0. <= val <= 4500.
 )
-draw.save(f"grid_{GRID_RESOLUTION}x{GRID_RESOLUTION}.png")
+draw.save(args.grid.rsplit('.', 1)[0] + '.png')
