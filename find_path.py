@@ -7,9 +7,13 @@ parser = argparse.ArgumentParser(description='Find a terrain following path.')
 parser.add_argument('-r', '--resolution', metavar='GRID_RESOLUTION',
                     type=int, default=100,
                     help='grid resolution in meters (default 100)')
-parser.add_argument('grid', metavar="GRID_FILE",
+parser.add_argument('grid', metavar="GRID_FILE.npy",
                     help='grid file')
+parser.add_argument('start', metavar="START", help='start node coordinate')
+parser.add_argument('goal' , metavar="GOAL" , help='goal node coordinate' )
 args = parser.parse_args()
+
+file_base = args.grid.rsplit('.', 1)[0]
 
 # bounds for Austria in WGS84 / Pseudo-Mercator (EPSG 3857)
 grid_orig = (1060000., 6280000.) # upper left corner
@@ -98,7 +102,18 @@ draw.fill_palette(
 #)
 draw.fill_color(path, (255, 0, 0))
 draw.fill_color([grid_start, grid_goal], (0, 0, 255))
-draw.save(args.grid.rsplit('.', 1)[0] + '_path.png')
+draw.save(file_base + '_path.png')
+
+# overlay SVG file
+with open(file_base + '_path.svg', 'w') as svg:
+    svg.write('<svg ')
+    svg.write(f"width=\"{grid.size[0]}\" height=\"{grid.size[1]}\" ")
+    svg.write(f"viewBox=\"0 0 {grid.size[0]} {grid.size[1]}\" ")
+    svg.write('xmlns=\"http://www.w3.org/2000/svg\">\n')
+    svg.write('  <polyline points=\"')
+    svg.write(' '.join(f"{x},{y}" for x, y in path))
+    svg.write(f"\" fill=\"none\" stroke=\"black\" />\n")
+    svg.write('</svg>')
 
 #total_delta = 0
 #for node1, node2 in zip(path, path[1:]):
@@ -122,7 +137,7 @@ min_slope, max_slope = 0., 0.
 svg_scale    = (0.1, 1.)
 profile_size = (int(path_len * svg_scale[0]), int(4000. * svg_scale[1]))
 
-with open(args.grid.rsplit('.', 1)[0] + '_profile.png', 'w') as svg:
+with open(file_base + '_profile.png', 'w') as svg:
     svg.write('<svg ')
     svg.write(f"width=\"{profile_size[0]}\" height=\"{profile_size[1]}\" ")
     svg.write(f"viewBox=\"0 0 {profile_size[0]} {profile_size[1]}\" ")
