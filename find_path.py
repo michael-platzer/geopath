@@ -81,7 +81,41 @@ grid_goal = (
 
 print(f"  grid start: {grid_start}, grid goal: {grid_goal}")
 
-path = grid.find_path(grid_start, grid_goal)
+try:
+    path = grid.find_path(grid_start, grid_goal)
+except Exception as e:
+    print(str(e))
+    path = []
+
+
+###############################################################################
+# write output path to KML file
+
+from geotiff import GeoTIFF
+
+path_epsg3857 = [
+    (grid.orig[0] + x * grid.scale, grid.orig[1] - y * grid.scale)
+    for x, y in path
+]
+path_wgs84 = GeoTIFF._cs2cs(['EPSG:3857 EPSG:4326'], path_epsg3857)
+
+with open(file_base + '_path.kml', 'w') as kml:
+    kml.write( '<?xml version="1.0" encoding="UTF-8"?>\n')
+    kml.write( '<kml xmlns="http://www.opengis.net/kml/2.2">\n')
+    kml.write( '  <Document>\n')
+    kml.write(f"    <name>Terrain Following Path Planner</name>\n")
+    kml.write( '    <Placemark>\n')
+    kml.write( '      <name>Flight Path</name>\n')
+    kml.write( '      <LineString>\n')
+    kml.write( '        <coordinates>\n')
+    for (x, y), coord in zip(path, path_wgs84):
+        flight_alt = grid.get_node_value((x, y)) + 120
+        kml.write(f"          {coord[1]},{coord[0]},{flight_alt}\n")
+    kml.write( '        </coordinates>\n')
+    kml.write( '      </LineString>\n')
+    kml.write( '    </Placemark>\n')
+    kml.write( '  </Document>\n')
+    kml.write( '</kml>\n')
 
 
 ###############################################################################

@@ -17,6 +17,7 @@
 *.tfw
 *.zip
 *.npy
+*.kml
 
 # Ignore Google protocol buffer parsers
 *_pb2.*
