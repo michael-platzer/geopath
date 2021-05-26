@@ -117,7 +117,8 @@ class GeoTIFF:
         raise ValueError(f"invalid tag {tag}")
 
 
-    def _cs2cs(self, args, coords):
+    @staticmethod
+    def _cs2cs(args, coords):
         command = ' | '.join('cs2cs -f %.12f ' + arg for arg in args)
         proc = subprocess.Popen(
             command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, shell=True
