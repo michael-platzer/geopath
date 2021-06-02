@@ -7,6 +7,9 @@ parser = argparse.ArgumentParser(description='Find a terrain following path.')
 parser.add_argument('-r', '--resolution', metavar='GRID_RESOLUTION',
                     type=int, default=100,
                     help='grid resolution in meters (default 100)')
+parser.add_argument('-e', '--epsilon', metavar='EPSILON',
+                    type=float, default=50.,
+                    help='epsilon for the Ramer-Douglas-Peucker algorithm')
 parser.add_argument('grid', metavar="GRID_FILE.npy",
                     help='grid file')
 parser.add_argument('start', metavar="START", help='start node coordinate')
@@ -98,7 +101,7 @@ def rdp(path, epsilon):
         return res1[:-1] + res2
     return [path[0], path[-1]]
 
-path = rdp(path, 50.)
+path = rdp(path, args.epsilon)
 
 print(f"simplified the path to {len(path)} points")
 
