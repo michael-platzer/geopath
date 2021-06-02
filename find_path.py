@@ -34,28 +34,6 @@ grid = GeoGrid.load(
     args.grid, grid_scale, grid_orig
 )
 
-print(f"Initializing graph ...")
-
-grid.init_graph(length_scale=grid.scale/distortion)
-grid_edges = grid.get_edges()
-
-print(f"Updating weight of all edges with slope penalty ...")
-
-# update edge weights with the additional cost of climbing/descending
-#slope_factor = 0.001 / (0.05**2)  # accepting 0.1 % longer way to avoid 5 % slope
-#slope_factor = 0.01 / (0.05**2)  # accepting 1 % longer way to avoid 5 % slope
-#slope_factor = 0.1 / (0.05**2)  # accepting 10 % longer way to avoid 5 % slope
-#slope_factor = 0.2 / (0.05**2)  # accepting 20 % longer way to avoid 5 % slope
-#slope_factor = 0.4 / (0.05**2)  # accepting 20 % longer way to avoid 5 % slope
-slope_factor = 0.5 / (0.05**2)  # accepting 50 % longer way to avoid 5 % slope
-#slope_factor = 1.0 / (0.05**2)  # accepting 100 % longer way to avoid 5 % slope
-for edge in grid_edges:
-    node1, node2 = edge
-    diff   = abs(grid.get_node_value(node1) - grid.get_node_value(node2))
-    length = grid_edges[edge]['weight']
-    slope  = diff / length
-    grid_edges[edge]['weight'] = length * (1. + slope_factor * slope**2)
-
 
 ###############################################################################
 # search path
