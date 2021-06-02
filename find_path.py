@@ -44,8 +44,9 @@ print("Searching path ...")
 #coord_goal  = (1783338.24, 5915996.99)
 #coord_start = (1373668.944570, 6052995.719446)
 #coord_goal  = (1526447.454855, 5873019.959034)
-coord_start = (1615267.281722, 6207771.147095)
-coord_goal  = (1862674.833024, 6223846.809606)
+
+coord_start = tuple(float(val) for val in args.start.split(','))
+coord_goal  = tuple(float(val) for val in args.goal.split(','))
 
 # convert start and goal coordinates to nodes
 grid_start = (
