@@ -7,6 +7,9 @@ parser = argparse.ArgumentParser(description='Find a terrain following path.')
 parser.add_argument('-r', '--resolution', metavar='GRID_RESOLUTION',
                     type=int, default=100,
                     help='grid resolution in meters (default 100)')
+parser.add_argument('-s', '--slope_factor', metavar='SLOPE_FACTOR',
+                    type=int, default=0.1/(0.05**2),
+                    help='slope factor used for slope penalty calculation')
 parser.add_argument('-e', '--epsilon', metavar='EPSILON',
                     type=float, default=50.,
                     help='epsilon for the Ramer-Douglas-Peucker algorithm')
@@ -63,8 +66,10 @@ grid_goal = (
 
 print(f"  grid start: {grid_start}, grid goal: {grid_goal}")
 
+slope_factor = args.slope_factor / args.resolution**2
+
 try:
-    path = grid.find_path(grid_start, grid_goal)
+    path = grid.find_path(grid_start, grid_goal, slope_factor)
 except Exception as e:
     print(str(e))
     path = []

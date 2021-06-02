@@ -170,7 +170,7 @@ class GeoGrid:
         return diff * self.scale
 
 
-    def find_path(self, node1, node2):
+    def find_path(self, node1, node2, slope_factor):
         heuristic = lambda n1, n2: math.sqrt((n1[0] - n2[0])**2 + (n1[1] - n2[1])**2)
 
         camefrom = {}
@@ -183,9 +183,6 @@ class GeoGrid:
             (0, 1, 1.   ), (1,  0, 1.   ), ( 0, -1, 1.   ), (-1, 0, 1.   ),
             (1, 1, sqrt2), (1, -1, sqrt2), (-1, -1, sqrt2), (-1, 1, sqrt2)
         ]
-
-        slope_factor = 0.1 / (0.05**2)
-        slope_factor *= 1 / 200**2  # self.scale**2
 
         while len(f_scores) > 0:
             current_f, current_g, current = heapq.heappop(f_scores)
