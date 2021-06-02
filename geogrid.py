@@ -3,6 +3,7 @@ import numpy as np
 import networkx as nx
 import math
 import shapely.geometry as shp
+import heapq
 
 class GeoGrid:
     def __init__(self, size, scale, orig=(0,0)):
@@ -170,6 +171,51 @@ class GeoGrid:
 
 
     def find_path(self, node1, node2):
-        heuristic = lambda n1, n2: self.distance(n1, n2)
-        return nx.astar_path(self.G, node1, node2, heuristic=heuristic)
+        heuristic = lambda n1, n2: math.sqrt((n1[0] - n2[0])**2 + (n1[1] - n2[1])**2)
 
+        camefrom = {}
+        g_scores = {node1: 0.}
+        f_scores = []
+        heapq.heappush(f_scores, (heuristic(node1, node2), 0., node1))
+
+        sqrt2 = math.sqrt(2.)
+        deltas = [
+            (0, 1, 1.   ), (1,  0, 1.   ), ( 0, -1, 1.   ), (-1, 0, 1.   ),
+            (1, 1, sqrt2), (1, -1, sqrt2), (-1, -1, sqrt2), (-1, 1, sqrt2)
+        ]
+
+        slope_factor = 0.1 / (0.05**2)
+        slope_factor *= 1 / 200**2  # self.scale**2
+
+        while len(f_scores) > 0:
+            current_f, current_g, current = heapq.heappop(f_scores)
+            # skip old entries that have already been replaced by a newer entry
+            # in f_scores
+            if current_g != g_scores[current]:
+                continue
+            if current == node2:
+                break
+            current_h = self.vals[current[0], current[1]]
+            for dx, dy, dist in deltas:
+                neighbor   = (current[0] + dx, current[1] + dy)
+                neighbor_h = self.vals[neighbor[0], neighbor[1]]
+                # skip neighbors that are invalid
+                if not (0. <= neighbor_h <= 5000.):
+                    continue
+                slope = abs(current_h - neighbor_h) / dist
+                new_g = current_g + dist * (1. + slope_factor * slope**2)
+                neighbor_g = g_scores.get(neighbor, None)
+                if neighbor_g is None or new_g < neighbor_g:
+                    camefrom[neighbor] = current
+                    g_scores[neighbor] = new_g
+                    neighbor_f = new_g + heuristic(neighbor, node2)
+                    heapq.heappush(f_scores, (neighbor_f, new_g, neighbor))
+
+        if len(f_scores) == 0:
+            return []
+        path = [node2]
+        current = node2
+        while current != node1:
+            current = camefrom[current]
+            path.insert(0, current)
+        return path
