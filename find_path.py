@@ -87,6 +87,42 @@ except Exception as e:
     print(str(e))
     path = []
 
+print(f"found a path with {len(path)} points")
+
+
+###############################################################################
+# simplify path using the Ramer-Douglas-Peucker algorithm
+
+def rdp(path, epsilon):
+    # extract the coordinates (including height) of start and end node
+    x1, y1, z1 = path[ 0][0], path[ 0][1], grid.get_node_value(path[ 0])
+    x2, y2, z2 = path[-1][0], path[-1][1], grid.get_node_value(path[-1])
+    # calculate the distance from start to end node
+    line_len = math.sqrt((x1 - x2)**2 + (y1 - y2)**2 + (z1 - z2)**2)
+    assert line_len > 0.
+    # get the height of each intermediate point
+    alt = [grid.get_node_value(pt) for pt in path[1:-1]]
+    # calculate the distance between all intermediate points and the line from
+    # start to end node
+    dists = [math.sqrt(
+        ((y2 - y1) * (z1 - z) - (y1 - y) * (z2 - z2))**2 +
+        ((z2 - z1) * (x1 - x) - (z1 - z) * (x2 - x2))**2 +
+        ((x2 - x1) * (y1 - y) - (x1 - x) * (y2 - y2))**2
+    ) / line_len for (x, y), z in zip(path[1:-1], alt)]
+    # get maximum distance
+    maxdist = max(dists)
+    maxidx  = dists.index(maxdist)
+    if maxdist > epsilon:
+        # divide and conquer
+        res1 = rdp(path[:maxidx+1], epsilon)
+        res2 = rdp(path[ maxidx: ], epsilon)
+        return res1[:-1] + res2
+    return [path[0], path[-1]]
+
+path = rdp(path, 50.)
+
+print(f"simplified the path to {len(path)} points")
+
 
 ###############################################################################
 # write output path to KML file
