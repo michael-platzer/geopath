@@ -1,5 +1,6 @@
 
 import numpy as np
+from scipy.ndimage import gaussian_filter
 import networkx as nx
 import math
 import shapely.geometry as shp
@@ -118,6 +119,19 @@ class GeoGrid:
     def get_node_values(self, nodes):
         for x, y in nodes:
             yield float((x, y), self.vals[x, y])
+
+
+    def smooth_node_values(self, sigma, max_diff):
+        # apply gaussian blur to height map in order to avoid short steep edges
+        hmap  = gaussian_filter(self.vals, sigma=sigma)
+        diffs = [
+            abs(h1 - h2) for h1, h2
+            in zip(np.nditer(self.vals), np.nditer(hmap))
+            if h1 >= 0. and h2 >= 0.
+        ]
+        assert all(diff <= max_diff for diff in diffs)
+        self.vals = hmap
+        return max(diffs)
 
 
     def coords_to_grid(self, coords):

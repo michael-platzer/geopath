@@ -73,6 +73,11 @@ grid     = init_topo_grid(grid_size, grid_scale, grid_orig, 3857, dem_path)
 
 print(f"Initialized grid with digital elevation model")
 
+# smoothing grid
+maxdiff = grid.smooth_node_values(0.1, 10.)
+
+print(f"Smoothed grid (maximum difference: {maxdiff} m")
+
 
 ###############################################################################
 # airspace features
