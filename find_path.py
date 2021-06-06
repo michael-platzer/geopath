@@ -88,7 +88,7 @@ def rdp(path, epsilon):
     line_len = math.sqrt((x1 - x2)**2 + (y1 - y2)**2 + (z1 - z2)**2)
     assert line_len > 0.
     # get the height of each intermediate point
-    alt = [grid.get_node_value(pt) for pt in path[1:-1]]
+    alt = [grid.get_node_value(pt[0], pt[1]) + pt[2] for pt in path[1:-1]]
     # calculate the distance between all intermediate points and the line from
     # start to end node
     dists = [math.sqrt(
@@ -118,7 +118,7 @@ from geotiff import GeoTIFF
 
 path_epsg3857 = [
     (grid.orig[0] + x * grid.scale, grid.orig[1] - y * grid.scale)
-    for x, y in path
+    for x, y, _ in path
 ]
 path_wgs84 = GeoTIFF._cs2cs(['EPSG:3857 EPSG:4326'], path_epsg3857)
 
@@ -131,8 +131,8 @@ with open(file_base + '_path.kml', 'w') as kml:
     kml.write( '      <name>Flight Path</name>\n')
     kml.write( '      <LineString>\n')
     kml.write( '        <coordinates>\n')
-    for (x, y), coord in zip(path, path_wgs84):
-        flight_alt = grid.get_node_value((x, y)) + 120
+    for (x, y, z), coord in zip(path, path_wgs84):
+        flight_alt = grid.get_node_value((x, y)) + 110 + z
         kml.write(f"          {coord[1]},{coord[0]},{flight_alt}\n")
     kml.write( '        </coordinates>\n')
     kml.write( '      </LineString>\n')
@@ -168,7 +168,7 @@ with open(file_base + '_path.svg', 'w') as svg:
     svg.write(f"viewBox=\"0 0 {grid.size[0]} {grid.size[1]}\" ")
     svg.write('xmlns=\"http://www.w3.org/2000/svg\">\n')
     svg.write('  <polyline points=\"')
-    svg.write(' '.join(f"{x},{y}" for x, y in path))
+    svg.write(' '.join(f"{x},{y}" for x, y, _ in path))
     svg.write(f"\" fill=\"none\" stroke=\"black\" />\n")
     svg.write('</svg>')
 
@@ -185,7 +185,7 @@ with open(file_base + '_path.svg', 'w') as svg:
 # generate altitude profile
 
 path_len = args.resolution * sum(
-    math.sqrt((x1 - x2)**2 + (y1 - y2)**2) for (x1, y1), (x2, y2)
+    math.sqrt((x1 - x2)**2 + (y1 - y2)**2) for (x1, y1, _), (x2, y2, _)
                                            in zip(path, path[1:])
 )
 delta_alt = 0.
@@ -200,12 +200,12 @@ with open(file_base + '_profile.png', 'w') as svg:
     svg.write(f"viewBox=\"0 0 {profile_size[0]} {profile_size[1]}\" ")
     svg.write('xmlns=\"http://www.w3.org/2000/svg\">\n')
 
-    terrain_line = [(0., grid.get_node_value(path[0]))]
+    terrain_line = [(0., grid.get_node_value((path[0][0], path[0][1])))]
     xpos = 0.
-    for (x1, y1), (x2, y2) in zip(path, path[1:]):
+    for (x1, y1, z1), (x2, y2, z2) in zip(path, path[1:]):
         dist  = args.resolution * math.sqrt((x1 - x2)**2 + (y1 - y2)**2)
-        alt1  = grid.get_node_value((x1, y1))
-        alt2  = grid.get_node_value((x2, y2))
+        alt1  = grid.get_node_value((x1, y1)) + z1
+        alt2  = grid.get_node_value((x2, y2)) + z2
         slope = (alt2 - alt1) / dist
         # stats
         delta_alt += abs(alt1 - alt2)

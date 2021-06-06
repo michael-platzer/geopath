@@ -40,12 +40,12 @@ class GeoDraw:
 
     def fill_color(self, coords, color):
         for coord in coords:
-            self.img.putpixel(coord, color)
+            self.img.putpixel((coord[0], coord[1]), color)
 
 
     def fill_palette(self, vals):
         for coord, val in vals:
-            self.img.putpixel(coord, self._palette_color(val))
+            self.img.putpixel((coord[0], coord[1]), self._palette_color(val))
 
 
     def save(self, path):
