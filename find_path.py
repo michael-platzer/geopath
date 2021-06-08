@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
-import math
 import argparse
+import math
+import time
 
 parser = argparse.ArgumentParser(description='Find a terrain following path.')
 parser.add_argument('-r', '--resolution', metavar='GRID_RESOLUTION',
@@ -68,13 +69,15 @@ print(f"  grid start: {grid_start}, grid goal: {grid_goal}")
 
 slope_factor = args.slope_factor / args.resolution**2
 
+t_start = time.time()
 try:
     path = grid.find_path(grid_start, grid_goal, slope_factor)
 except Exception as e:
     print(str(e))
     path = []
+t_end = time.time()
 
-print(f"found a path with {len(path)} points")
+print(f"found a path with {len(path)} points in {t_end - t_start:.2f} seconds")
 
 
 ###############################################################################
