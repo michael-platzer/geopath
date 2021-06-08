@@ -11,8 +11,8 @@ parser.add_argument('-s', '--slope_factor', metavar='SLOPE_FACTOR',
                     type=int, default=0.1/(0.05**2),
                     help='slope factor used for slope penalty calculation')
 parser.add_argument('-e', '--epsilon', metavar='EPSILON',
-                    type=float, default=50.,
-                    help='epsilon for the Ramer-Douglas-Peucker algorithm')
+                    type=float, default=None,
+                    help='epsilon for RDP path reduction (default equal to r)')
 parser.add_argument('grid', metavar="GRID_FILE.npy",
                     help='grid file')
 parser.add_argument('start', metavar="START", help='start node coordinate')
