@@ -81,6 +81,58 @@ print(f"found a path with {len(path)} points in {t_end - t_start:.2f} seconds")
 
 
 ###############################################################################
+# try to straighten the altitude as much as possible
+
+# get grid altitudes and calculate distance and slope between every two nodes
+path_grid_alt = [grid.get_node_value((x, y)) for x, y, _ in path]
+path_dists    = [
+    math.sqrt((x1 - x2)**2 + (y1 - y2)**2)
+    for (x1, y1, _), (x2, y2, _) in zip(path, path[1:])
+]
+path_slopes = [
+    (alt2 - alt1) / dist for alt1, alt2, dist
+    in zip(path_grid_alt, path_grid_alt[1:], path_dists)
+]
+# identify whether the slope increases or decreases at every node and assign
+# preliminary altitude deviation levels based on that
+alt_devs = [
+    (-10. if slope2 > slope1 else 10.) for slope1, slope2
+    in zip([0.] + path_slopes, path_slopes + [0.])
+]
+#
+for curr_idx, (curr_alt, curr_dev) in enumerate(zip(path_grid_alt, alt_devs)):
+    # go back to the last node that is still "visible" from the current node,
+    # i.e., the node from which, moving in a straight line, altitude deviations
+    # of intermediate nodes are still valid
+    for prev_idx in range(curr_idx-1, -1, -1):
+        prev_h      = path_grid_alt[prev_idx] + alt_devs[prev_idx]
+        total_dist  = sum(path_dists[prev_idx:curr_idx])
+        avg_slope   = (curr_alt + curr_dev - prev_h) / total_dist
+        cum_dist    = 0.
+        target_devs = []
+        visible     = True
+        for grid_alt, dist in zip(
+            path_grid_alt[prev_idx+1:curr_idx], path_dists[prev_idx:curr_idx]
+        ):
+            cum_dist  += dist
+            target_dev = cum_dist * avg_slope - grid_alt
+            if target_dev > 10. or target_dev < -10.:
+                visible = False
+                break
+            target_devs.append(target_dev)
+        if not visible:
+            break
+        # replace tentative deviations with the new ones
+        for idx, dev in enumerate(target_devs, start=prev_idx+1):
+            alt_devs[idx] = dev
+
+print(alt_devs)
+
+path = [(x, y, alt) for (x, y, _), alt in zip(path, alt_devs)]
+
+
+
+###############################################################################
 # simplify path using the Ramer-Douglas-Peucker algorithm
 
 def rdp(path, epsilon, z_scale):
