@@ -80,33 +80,43 @@ print(f"found a path with {len(path)} points")
 ###############################################################################
 # simplify path using the Ramer-Douglas-Peucker algorithm
 
-def rdp(path, epsilon):
+def rdp(path, epsilon, z_scale):
     # extract the coordinates (including height) of start and end node
-    x1, y1, z1 = path[ 0][0], path[ 0][1], grid.get_node_value(path[ 0])
-    x2, y2, z2 = path[-1][0], path[-1][1], grid.get_node_value(path[-1])
+    start, end = path[0], path[-1]
+    x1, y1, z1 = start[0], start[1], grid.get_node_value(start) + start[2]
+    x2, y2, z2 = end  [0], end  [1], grid.get_node_value(end  ) + end  [2]
+    # scale the z values (required to lower the threshold for height deviation)
+    z1 *= z_scale
+    z2 *= z_scale
     # calculate the distance from start to end node
     line_len = math.sqrt((x1 - x2)**2 + (y1 - y2)**2 + (z1 - z2)**2)
     assert line_len > 0.
     # get the height of each intermediate point
-    alt = [grid.get_node_value(pt[0], pt[1]) + pt[2] for pt in path[1:-1]]
+    alt = [
+        (grid.get_node_value((x, y)) + z) * z_scale for x, y, z in path[1:-1]
+    ]
     # calculate the distance between all intermediate points and the line from
     # start to end node
     dists = [math.sqrt(
         ((y2 - y1) * (z1 - z) - (y1 - y) * (z2 - z2))**2 +
         ((z2 - z1) * (x1 - x) - (z1 - z) * (x2 - x2))**2 +
         ((x2 - x1) * (y1 - y) - (x1 - x) * (y2 - y2))**2
-    ) / line_len for (x, y), z in zip(path[1:-1], alt)]
+    ) / line_len for (x, y, _), z in zip(path[1:-1], alt)]
     # get maximum distance
     maxdist = max(dists)
     maxidx  = dists.index(maxdist)
     if maxdist > epsilon:
         # divide and conquer
-        res1 = rdp(path[:maxidx+1], epsilon)
-        res2 = rdp(path[ maxidx: ], epsilon)
+        res1 = rdp(path[:maxidx+1], epsilon, z_scale)
+        res2 = rdp(path[ maxidx: ], epsilon, z_scale)
         return res1[:-1] + res2
-    return [path[0], path[-1]]
+    return [start, end]
 
-path = rdp(path, args.epsilon)
+# simplify the path; note that the altitude (z values) need to be exaggerated
+# in order to lower threshold for intermediate points when the height deviates
+epsilon = args.epsilon if args.epsilon is not None else args.resolution
+z_scale = epsilon / 10.
+path    = rdp(path, epsilon, z_scale)
 
 print(f"simplified the path to {len(path)} points")
 
