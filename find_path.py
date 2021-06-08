@@ -259,32 +259,34 @@ min_slope, max_slope = 0., 0.
 svg_scale    = (0.1, 1.)
 profile_size = (int(path_len * svg_scale[0]), int(4000. * svg_scale[1]))
 
-with open(file_base + '_profile.png', 'w') as svg:
+with open(file_base + '_profile.svg', 'w') as svg:
     svg.write('<svg ')
     svg.write(f"width=\"{profile_size[0]}\" height=\"{profile_size[1]}\" ")
     svg.write(f"viewBox=\"0 0 {profile_size[0]} {profile_size[1]}\" ")
     svg.write('xmlns=\"http://www.w3.org/2000/svg\">\n')
 
     terrain_line = [(0., grid.get_node_value((path[0][0], path[0][1])))]
+    flight_line  = [(0., grid.get_node_value((path[0][0], path[0][1])) + path[0][2])]
     xpos = 0.
     for (x1, y1, z1), (x2, y2, z2) in zip(path, path[1:]):
-        dist  = args.resolution * math.sqrt((x1 - x2)**2 + (y1 - y2)**2)
-        alt1  = grid.get_node_value((x1, y1)) + z1
-        alt2  = grid.get_node_value((x2, y2)) + z2
-        slope = (alt2 - alt1) / dist
+        dist       = args.resolution * math.sqrt((x1 - x2)**2 + (y1 - y2)**2)
+        grid_alt1  = grid.get_node_value((x1, y1))
+        grid_alt2  = grid.get_node_value((x2, y2))
+        grid_slope = (grid_alt2 - grid_alt1) / dist
+        path_slope = ((grid_alt2 + z2) - (grid_alt1 + z1)) / dist
         # stats
-        delta_alt += abs(alt1 - alt2)
-        min_slope  = min(min_slope, slope)
-        max_slope  = max(max_slope, slope)
+        delta_alt += abs(grid_alt1 - grid_alt2)
+        min_slope  = min(min_slope, path_slope)
+        max_slope  = max(max_slope, path_slope)
         # svg output
         stops = [
-            (255, 255, 255), ((255, 0, 0) if slope >= 0. else (0, 0, 255))
+            (255, 255, 255), ((255, 0, 0) if grid_slope >= 0. else (0, 0, 255))
         ]
         color = tuple(
-            int((1. - abs(slope)) * stop1 + abs(slope) * stop2)
+            int((1. - abs(grid_slope)) * stop1 + abs(grid_slope) * stop2)
             for stop1, stop2 in zip(stops[0], stops[1])
         )
-        alt1, alt2 = alt1 * svg_scale[1], alt2 * svg_scale[1]
+        alt1, alt2 = grid_alt1 * svg_scale[1], grid_alt2 * svg_scale[1]
         svg.write(f"  <polygon points=\"")
         svg.write(f"{xpos                      },{profile_size[1]       } ")
         svg.write(f"{xpos + dist * svg_scale[0]},{profile_size[1]       } ")
@@ -293,9 +295,14 @@ with open(file_base + '_profile.png', 'w') as svg:
         svg.write(f"\" fill=\"rgb{color}\" stroke=\"none\" />\n")
         xpos += dist * svg_scale[0]
         terrain_line.append((xpos, alt2))
+        flight_line.append((xpos, (grid_alt2 + z2) * svg_scale[1]))
 
     svg.write('  <polyline points=\"')
     svg.write(' '.join(f"{x},{profile_size[1] - y}" for x, y in terrain_line))
+    svg.write(f"\" fill=\"none\" stroke=\"black\" />\n")
+
+    svg.write('  <polyline points=\"')
+    svg.write(' '.join(f"{x},{profile_size[1] - y}" for x, y in flight_line))
     svg.write(f"\" fill=\"none\" stroke=\"black\" />\n")
 
     svg.write('</svg>')
