@@ -219,7 +219,7 @@ class GeoGrid:
                 # potential height deviation at the neighbor node, the
                 # resulting slope, and the potential g score of the neighbor
                 hdiff = neighbor_h - current_h
-                hdev  = max(min(hdiff, max_h_dev), -max_h_dev)
+                hdev  = max(min(-hdiff * 0.9, max_h_dev), -max_h_dev)
                 slope = abs(neighbor_h + hdev - current_h) / dist
                 new_g = current_g + dist * (1. + slope_factor * slope**2)
                 # update entries of the neighbor if the new g score is better
