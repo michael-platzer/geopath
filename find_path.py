@@ -306,7 +306,15 @@ with open(file_base + '_profile.svg', 'w') as svg:
     svg.write(f"\" fill=\"none\" stroke=\"black\" />\n")
 
     svg.write('  <polyline points=\"')
-    svg.write(' '.join(f"{x},{profile_size[1] - y}" for x, y in flight_line))
+    svg.write(' '.join(f"{x},{profile_size[1] - (y + 90)}" for x, y in terrain_line))
+    svg.write(f"\" fill=\"none\" stroke=\"black\" stroke-width=\"0.5\"/>\n")
+
+    svg.write('  <polyline points=\"')
+    svg.write(' '.join(f"{x},{profile_size[1] - (y + 110)}" for x, y in terrain_line))
+    svg.write(f"\" fill=\"none\" stroke=\"black\" stroke-width=\"0.5\"/>\n")
+
+    svg.write('  <polyline points=\"')
+    svg.write(' '.join(f"{x},{profile_size[1] - (y + 100)}" for x, y in flight_line))
     svg.write(f"\" fill=\"none\" stroke=\"black\" />\n")
 
     svg.write('</svg>')
