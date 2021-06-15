@@ -184,7 +184,7 @@ class GeoGrid:
         return diff * self.scale
 
 
-    def find_path(self, node1, node2, slope_factor):
+    def find_path(self, node1, node2, slope_factor, extended_radius=False):
         # the heuristic function is simply the euclidiean distance
         heuristic = lambda n1, n2: math.sqrt((n1[0] - n2[0])**2 + (n1[1] - n2[1])**2)
 
@@ -198,6 +198,13 @@ class GeoGrid:
             (0, 1, 1.   ), (1,  0, 1.   ), ( 0, -1, 1.   ), (-1, 0, 1.   ),
             (1, 1, sqrt2), (1, -1, sqrt2), (-1, -1, sqrt2), (-1, 1, sqrt2)
         ]
+        if extended_radius:
+            sqrt5 = math.sqrt(5.)
+            deltas += [
+                (0, 2, 2.   ), (2,  0, 2.   ), ( 0, -2, 2.   ), (-2, 0, 2.   ),
+                (1, 2, sqrt5), (1, -2, sqrt5), (-1, -2, sqrt5), (-1, 2, sqrt5),
+                (2, 1, sqrt5), (2, -1, sqrt5), (-2, -1, sqrt5), (-2, 1, sqrt5)
+            ]
 
         while len(f_scores) > 0:
             current_f, current_g, current = heapq.heappop(f_scores)
