@@ -184,12 +184,11 @@ class GeoGrid:
         return diff * self.scale
 
 
-    def find_path(self, node1, node2, slope_factor, max_h_dev=10.):
+    def find_path(self, node1, node2, slope_factor):
         # the heuristic function is simply the euclidiean distance
         heuristic = lambda n1, n2: math.sqrt((n1[0] - n2[0])**2 + (n1[1] - n2[1])**2)
 
         camefrom = {}
-        h_devs   = {node1: 0.}  # height deviation
         g_scores = {node1: 0.}
         f_scores = []
         heapq.heappush(f_scores, (heuristic(node1, node2), 0., node1))
@@ -208,7 +207,7 @@ class GeoGrid:
                 continue
             if current == node2:
                 break
-            current_h = self.vals[current[0], current[1]] + h_devs[current]
+            current_h = self.vals[current[0], current[1]]
             for dx, dy, dist in deltas:
                 neighbor   = (current[0] + dx, current[1] + dy)
                 neighbor_h = self.vals[neighbor[0], neighbor[1]]
@@ -216,26 +215,23 @@ class GeoGrid:
                 if not (0. <= neighbor_h <= 5000.):
                     continue
                 # calculate height difference from current to neighbor, the
-                # potential height deviation at the neighbor node, the
                 # resulting slope, and the potential g score of the neighbor
                 hdiff = neighbor_h - current_h
-                hdev  = max(min(-hdiff * 0.9, max_h_dev), -max_h_dev)
-                slope = abs(neighbor_h + hdev - current_h) / dist
+                slope = abs(neighbor_h - current_h) / dist
                 new_g = current_g + dist * (1. + slope_factor * slope**2)
                 # update entries of the neighbor if the new g score is better
                 neighbor_g = g_scores.get(neighbor, None)
                 if neighbor_g is None or new_g < neighbor_g:
                     camefrom[neighbor] = current
-                    h_devs[neighbor]   = hdev
                     g_scores[neighbor] = new_g
                     neighbor_f = new_g + heuristic(neighbor, node2)
                     heapq.heappush(f_scores, (neighbor_f, new_g, neighbor))
 
         if len(f_scores) == 0:
             return []
-        path = [(node2[0], node2[1], h_devs[node2])]
+        path = [(node2[0], node2[1], 0.)]
         current = node2
         while current != node1:
             current = camefrom[current]
-            path.insert(0, (current[0], current[1], h_devs[current]))
+            path.insert(0, (current[0], current[1], 0.))
         return path
