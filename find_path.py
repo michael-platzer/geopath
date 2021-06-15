@@ -83,54 +83,59 @@ print(f"found a path with {len(path)} points in {t_end - t_start:.2f} seconds")
 ###############################################################################
 # try to straighten the altitude as much as possible
 
-# get grid altitudes and calculate distance and slope between every two nodes
+print("Generating graph for altitude profile optimization ...")
+
+# get grid altitudes and calculate distance between every two nodes
 path_grid_alt = [grid.get_node_value((x, y)) for x, y, _ in path]
 path_dists    = [
     math.sqrt((x1 - x2)**2 + (y1 - y2)**2) * args.resolution
     for (x1, y1, _), (x2, y2, _) in zip(path, path[1:])
 ]
-path_slopes = [
-    (alt2 - alt1) / dist for alt1, alt2, dist
-    in zip(path_grid_alt, path_grid_alt[1:], path_dists)
-]
-# identify whether the slope increases or decreases at every node and assign
-# preliminary altitude deviation levels based on that (i.e., upper limit if the
-# slope increases, lower limit if the slope decreases)
-alt_devs = [
-    (10. if slope2 > slope1 else -10.) for slope1, slope2
-    in zip([0.] + path_slopes, path_slopes + [0.])
-]
-# for every node in the path, try to straigthen the immediatly preceeding part
-for curr_idx, (curr_alt, curr_dev) in enumerate(zip(path_grid_alt, alt_devs)):
-    # go back to the last node that is still "visible" from the current node,
-    # i.e., the node from which, moving in a straight line, altitude deviations
-    # of intermediate nodes are still valid
-    print(f"straigthening from node {curr_idx}")
-    for prev_idx in range(curr_idx-2, -1, -1):
-        print(f"  attempting to straigthen back to node {prev_idx}")
-        prev_h      = path_grid_alt[prev_idx] + alt_devs[prev_idx]
-        total_dist  = sum(path_dists[prev_idx:curr_idx])
-        avg_slope   = (curr_alt + curr_dev - prev_h) / total_dist
-        print(f"total dist: {total_dist}, avg slope: {avg_slope}")
-        cum_dist    = 0. # cumulative distance
-        target_devs = [] # tentative target deviations for a straight line
-        visible     = True
-        for grid_alt, dist in zip(
-            path_grid_alt[prev_idx+1:curr_idx], path_dists[prev_idx:curr_idx]
-        ):
-            cum_dist  += dist
-            target_dev = prev_h + cum_dist * avg_slope - grid_alt
-            print(f"    cum dist: {cum_dist}, target dev: {target_dev}")
-            if target_dev > 10. or target_dev < -10.:
-                visible = False
-                break
-            target_devs.append(target_dev)
-        if not visible:
-            break
-        # replace tentative deviations with the new ones
-        for idx, dev in enumerate(target_devs, start=prev_idx+1):
-            print(f"    replacing alt_devs[{idx}] current value ({alt_devs[idx]}) with {dev}")
-            alt_devs[idx] = dev
+
+def alt_path_straight(grid_alts, dists, start_dev, end_dev):
+    start_alt, end_alt = grid_alts[0] + start_dev, grid_alts[-1] + end_dev
+    total_dist = sum(dists)
+    avg_slope  = (end_alt - start_alt) / total_dist
+    cum_dist   = 0.
+    for grid_alt, dist in zip(grid_alts[1:-1], dists):
+        cum_dist  += dist
+        target_dev = start_alt + cum_dist * avg_slope - grid_alt
+        if target_dev > 10. or target_dev < -10.:
+            return False
+    return True
+
+import networkx as nx
+
+alt_graph = nx.Graph()
+for idx1 in range(len(path) - 1):
+    for idx2 in range(idx1 + 1, len(path)):
+        grid_alts = path_grid_alt[idx1:idx2+1]
+        dists     = path_dists   [idx1:idx2  ]
+        for dev1, dev2 in [(-10, -10), (10, -10), (-10, 10), (10, 10)]:
+            if alt_path_straight(grid_alts, dists, dev1, dev2):
+                alt_diff = (grid_alts[0] + dev1) - (grid_alts[-1] + dev2)
+                wgt      = math.sqrt(sum(dists)**2 + alt_diff**2)
+                alt_graph.add_edge((idx1, dev1), (idx2, dev2), weight=wgt)
+
+print("  optimizing altitude profile")
+
+alt_path_heuristic = lambda n1, n2: sum(path_dists[n1[0]:n2[0]])
+
+alt_path = nx.astar_path(
+    alt_graph, (0, -10), (len(path)-1, -10), alt_path_heuristic
+)
+
+alt_devs = []
+for (idx1, dev1), (idx2, dev2) in zip(alt_path, alt_path[1:]):
+    start_alt, end_alt = path_grid_alt[idx1] + dev1, path_grid_alt[idx2] + dev2
+    total_dist = sum(path_dists[idx1:idx2])
+    avg_slope  = (end_alt - start_alt) / total_dist
+    cum_dist   = 0.
+    for grid_alt, dist in zip(path_grid_alt[idx1:idx2], path_dists[idx1:idx2]):
+        target_dev = start_alt + cum_dist * avg_slope - grid_alt
+        assert -10. <= target_dev <= 10.
+        alt_devs.append(target_dev)
+        cum_dist += dist
 
 path = [(x, y, alt) for (x, y, _), alt in zip(path, alt_devs)]
 
