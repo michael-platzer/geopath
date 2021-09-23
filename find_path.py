@@ -9,7 +9,7 @@ parser.add_argument('-r', '--resolution', metavar='GRID_RESOLUTION',
                     type=int, default=100,
                     help='grid resolution in meters (default 100)')
 parser.add_argument('-s', '--slope_factor', metavar='SLOPE_FACTOR',
-                    type=int, default=0.1/(0.05**2),
+                    type=float, default=0.1/(0.05**2),
                     help='slope factor used for slope penalty calculation')
 parser.add_argument('-e', '--epsilon', metavar='EPSILON',
                     type=float, default=None,
