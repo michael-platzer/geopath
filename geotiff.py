@@ -120,13 +120,14 @@ class GeoTIFF:
     @staticmethod
     def _cs2cs(args, coords):
         command = ' | '.join('cs2cs -f %.12f ' + arg for arg in args)
+        stdout_tmp = open('cs2cs_buf', 'w')
         proc = subprocess.Popen(
-            command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, shell=True
+            command, stdin=subprocess.PIPE, stdout=stdout_tmp, shell=True
         )
         coords     = iter(coords)
         stdin_open = True
         stdout_buf = b''
-        while stdin_open or len(stdout_buf) > 0:
+        while stdin_open:
             if stdin_open:
                 # provide next input
                 coord = next(coords, None)
@@ -136,13 +137,11 @@ class GeoTIFF:
                 else:
                     proc.stdin.close()
                     stdin_open = False
-                # consume available output without blocking
-                rlist, _, _ = select.select([proc.stdout], [], [], 0)
-                if len(rlist) > 0:
-                    stdout_buf += os.read(proc.stdout.fileno(), 4096)
-            # read all remaining output when input is consumed
-            if not stdin_open:
-                stdout_buf += proc.stdout.read()
+        stdout_tmp.close()
+        stdout_tmp = open('cs2cs_buf', 'rb')
+        stdout_buf = stdout_tmp.read()
+        stdout_tmp.close()
+        while len(stdout_buf) > 0:
             # yield available results
             pos = stdout_buf.find(b'\n')
             if pos >= 0:
